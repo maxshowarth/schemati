@@ -111,8 +111,8 @@ def upload_files(uploaded_files, volume_handler, overwrite):
                 tmp_file.write(uploaded_file.getvalue())
                 tmp_file_path = tmp_file.name
                 
-                # Upload using VolumeHandler
-                success = volume_handler.upload_file(tmp_file_path, overwrite=overwrite)
+                # Upload using VolumeHandler with original filename
+                success = volume_handler.upload_file(tmp_file_path, overwrite=overwrite, destination_filename=uploaded_file.name)
                 
                 if success:
                     successful_uploads += 1

@@ -54,12 +54,18 @@ class VolumeHandler:
         except Exception:
             return False
 
-    def upload_file(self, file_path: str, overwrite: bool = False):
-        """Uploads a file to the volume using Files API upload."""
+    def upload_file(self, file_path: str, overwrite: bool = False, destination_filename: Optional[str] = None):
+        """Uploads a file to the volume using Files API upload.
+        
+        Args:
+            file_path: Path to the local file to upload
+            overwrite: Whether to overwrite existing files
+            destination_filename: Optional filename to use in the volume. If not provided, uses the basename of file_path.
+        """
         if not local_file_exists(file_path):
             logger.error(f"File {file_path} either does not exist or is not accessible.")
             return False
-        file_name = os.path.basename(file_path)
+        file_name = destination_filename if destination_filename is not None else os.path.basename(file_path)
         volume_file_path = f"/Volumes/{self.catalog}/{self.schema}/{self.volume_name}/{file_name}"
         if self.file_exists(file_name) and not overwrite:
             logger.error(f"File {file_name} already exists in volume {self.volume_name} and overwrite is False.")
