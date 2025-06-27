@@ -1,0 +1,16 @@
+# Global owners - all files require review from repository owner
+* @maxshowarth
+
+# Backend code
+backend/ @maxshowarth
+
+# CI/CD workflows and GitHub configuration
+.github/ @maxshowarth
+
+# Documentation
+docs/ @maxshowarth
+*.md @maxshowarth
+
+# Configuration files
+pyproject.toml @maxshowarth
+.pre-commit-config.yaml @maxshowarth
