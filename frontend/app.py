@@ -61,6 +61,9 @@ def main():
         """)
         return
     
+    # Show volume contents on page load
+    show_volume_contents(volume_handler)
+    
     # Main upload interface
     st.header("File Upload")
     
