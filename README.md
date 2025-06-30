@@ -8,38 +8,37 @@ Extract critical information from P&ID diagrams and other similar schematics usi
 
 This repository uses GitHub Actions for continuous integration and deployment:
 
-- **Backend Tests**: Automated testing on Python 3.12 and 3.13
+- **Backend Tests**: Automated testing on Python 3.13.2
 - **Code Quality**: Linting, formatting, and type checking with ruff, black, isort, and mypy
 - **Dependency Updates**: Automated via Dependabot
 
 ### Running Tests Locally
 
 ```bash
-# Install dependencies
-pip install -e .
+# Install dependencies with uv
+uv sync --dev
 
 # Run tests
-python -m pytest backend/tests/ -v
+PYTHONPATH=. uv run pytest backend/tests/ -v
 
 # Run code quality checks
-pip install -e .[dev]
-python -m ruff check backend/
-python -m black --check backend/
-python -m isort --check-only backend/
-python -m mypy backend/
+PYTHONPATH=. uv run ruff check backend/
+PYTHONPATH=. uv run black --check backend/
+PYTHONPATH=. uv run isort --check-only backend/
+PYTHONPATH=. uv run mypy backend/
 ```
 
 ### Pre-commit Hooks
 
 ```bash
-# Install pre-commit
-pip install pre-commit
+# Install pre-commit with uv
+uv run pip install pre-commit
 
 # Install hooks
-pre-commit install
+uv run pre-commit install
 
 # Run manually
-pre-commit run --all-files
+uv run pre-commit run --all-files
 ```
 
 ## Repository Setup

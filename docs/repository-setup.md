@@ -20,8 +20,7 @@ To ensure all PRs run the CI workflow before merging, configure the following br
    - ✅ **Require status checks to pass before merging**
      - ✅ Require branches to be up to date before merging
      - **Required status checks:**
-       - `backend-tests (3.12)`
-       - `backend-tests (3.13)`
+       - `backend-tests`
        - `code-quality`
 
    - ✅ **Require conversation resolution before merging**
@@ -50,8 +49,7 @@ GitHub's newer Repository Rules provide more granular control:
 
 The CI workflow creates the following status checks that should be required:
 
-- `backend-tests (3.12)` - Backend tests on Python 3.12
-- `backend-tests (3.13)` - Backend tests on Python 3.13  
+- `backend-tests` - Backend tests on Python 3.13.2
 - `code-quality` - Linting, formatting, and type checking
 
 ## Additional Recommendations
