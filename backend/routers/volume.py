@@ -3,6 +3,7 @@ import os
 from backend.auth import get_databricks_auth
 from backend.config import get_config
 from backend.logging import get_logger
+from backend.exceptions import FileAlreadyExistsError, FileNotFoundError, VolumeUploadError
 from typing import Optional
 
 app_config = get_config()
@@ -61,22 +62,30 @@ class VolumeHandler:
             file_path: Path to the local file to upload
             overwrite: Whether to overwrite existing files
             destination_filename: Optional filename to use in the volume. If not provided, uses the basename of file_path.
+            
+        Raises:
+            FileNotFoundError: If the local file doesn't exist
+            FileAlreadyExistsError: If the file already exists in the volume and overwrite is False
+            VolumeUploadError: If there's an error during the upload process
         """
         if not local_file_exists(file_path):
             logger.error(f"File {file_path} either does not exist or is not accessible.")
-            return False
+            raise FileNotFoundError(file_path)
+            
         file_name = destination_filename if destination_filename is not None else os.path.basename(file_path)
         volume_file_path = f"/Volumes/{self.catalog}/{self.schema}/{self.volume_name}/{file_name}"
+        
         if self.file_exists(file_name) and not overwrite:
             logger.error(f"File {file_name} already exists in volume {self.volume_name} and overwrite is False.")
-            return False
+            raise FileAlreadyExistsError(file_name, self.volume_name)
+            
         try:
             with open(file_path, "rb") as f:
                 self.client.files.upload(volume_file_path, f, overwrite=overwrite)
             return True
         except Exception as e:
             logger.error(f"Failed to upload file {file_path} to {volume_file_path}: {e}")
-            return False
+            raise VolumeUploadError(file_path, volume_file_path, e)
 
     def download_file(self, file_name: str, download_path: str):
         """Downloads a file from the volume onto the local filesystem using Files API download."""

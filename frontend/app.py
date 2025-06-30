@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from backend.routers.volume import VolumeHandler
 from backend.logging import get_logger
+from backend.exceptions import FileAlreadyExistsError, FileNotFoundError, VolumeUploadError
 
 logger = get_logger(__name__)
 
@@ -117,13 +118,34 @@ def upload_files(uploaded_files, volume_handler, overwrite):
                 if success:
                     successful_uploads += 1
                     logger.info(f"Successfully uploaded {uploaded_file.name}")
-                else:
-                    failed_uploads.append(uploaded_file.name)
-                    logger.error(f"Failed to upload {uploaded_file.name}")
                     
+            except FileAlreadyExistsError as e:
+                failed_uploads.append({
+                    'filename': uploaded_file.name,
+                    'error': f"File already exists in volume '{e.volume_name}'. Enable 'Overwrite existing files' to replace it."
+                })
+                logger.error(f"File already exists: {uploaded_file.name}")
+                
+            except FileNotFoundError as e:
+                failed_uploads.append({
+                    'filename': uploaded_file.name,
+                    'error': f"Temporary file could not be created or accessed."
+                })
+                logger.error(f"File not found: {e}")
+                
+            except VolumeUploadError as e:
+                failed_uploads.append({
+                    'filename': uploaded_file.name,
+                    'error': f"Upload failed: {e.original_error}"
+                })
+                logger.error(f"Upload error: {e}")
+                
             except Exception as e:
-                failed_uploads.append(uploaded_file.name)
-                logger.error(f"Error uploading {uploaded_file.name}: {e}")
+                failed_uploads.append({
+                    'filename': uploaded_file.name,
+                    'error': f"Unexpected error: {str(e)}"
+                })
+                logger.error(f"Unexpected error uploading {uploaded_file.name}: {e}")
                 
             finally:
                 # Clean up temporary file
@@ -141,8 +163,8 @@ def upload_files(uploaded_files, volume_handler, overwrite):
     
     if failed_uploads:
         st.error(f"❌ Failed to upload {len(failed_uploads)} file(s):")
-        for filename in failed_uploads:
-            st.write(f"- {filename}")
+        for failed_upload in failed_uploads:
+            st.write(f"**{failed_upload['filename']}**: {failed_upload['error']}")
     
     # Show volume contents
     if successful_uploads > 0:
