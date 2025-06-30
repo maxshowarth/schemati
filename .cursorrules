@@ -20,7 +20,7 @@
 
 ### Core Platform
 - **Platform**: Databricks (primary deployment target)
-- **Python**: 3.12+
+- **Python**: 3.13+
 - **Dependency Management**: `uv` (fast, modern Python package manager)
 - **Deployment**: Databricks Asset Bundles (DABs)
 - **Data Processing**: PySpark, Delta Lake, Unity Catalog
@@ -76,7 +76,7 @@
 ### Environment Setup
 ```bash
 # Create and activate environment
-uv venv --python 3.12 && source .venv/bin/activate
+uv venv --python 3.13 && source .venv/bin/activate
 uv pip install '.[dev]'
 ```
 
