@@ -25,6 +25,11 @@ class AppConfig(BaseSettings):
     log_level: str = "DEBUG"
     allowed_image_extensions: list[str] = [".jpg", ".jpeg", ".png"]
     allowed_pdf_extensions: list[str] = [".pdf"]
+    
+    # Image processing
+    image_dpi: int = 300
+    image_max_width: int = 2048
+    image_max_height: int = 2048
 
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
