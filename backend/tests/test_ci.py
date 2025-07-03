@@ -11,7 +11,7 @@ def test_imports():
     try:
         import backend
         import backend.config
-        import backend.auth
+        import backend.databricks.auth
         import backend.logging
         assert True
     except ImportError as e:

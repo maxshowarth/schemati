@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from backend.routers.volume import Volume, VolumeFileStore, create_volume_from_config, create_volume_file_store_from_config
-from backend.auth import get_databricks_auth
+from backend.databricks.auth import get_databricks_auth
 from unittest.mock import MagicMock
 
 

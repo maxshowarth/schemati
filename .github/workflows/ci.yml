@@ -13,76 +13,76 @@ env:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
       with:
         python-version: "3.13.2"
-    
+
     - name: Install uv
       uses: astral-sh/setup-uv@v6
       with:
         enable-cache: true
-    
+
     - name: Install dependencies
       run: |
         uv sync --dev
-    
+
     - name: Verify installation
       run: |
         PYTHONPATH=. uv run python -c "import backend; print('Backend package imported successfully')"
         uv run pytest --version
-    
+
     - name: Run backend tests with pytest
       run: |
         PYTHONPATH=. uv run pytest backend/tests/ -v --tb=short --strict-markers
-    
+
     - name: Run import tests
       run: |
         # Test that all modules can be imported
-        PYTHONPATH=. uv run python -c "from backend.auth import DatabricksAuthentication"
+        PYTHONPATH=. uv run python -c "from backend.databricks.auth import DatabricksAuthentication"
         PYTHONPATH=. uv run python -c "from backend.config import get_config"
         PYTHONPATH=. uv run python -c "from backend.logging import get_logger"
         PYTHONPATH=. uv run python -c "from backend.databricks.volume import VolumeHandler"
 
   code-quality:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
       with:
         python-version: "3.13.2"
-    
+
     - name: Install uv
       uses: astral-sh/setup-uv@v6
       with:
         enable-cache: true
-    
+
     - name: Install dependencies
       run: |
         uv sync --dev
-    
+
     - name: Run ruff linting
       run: |
         PYTHONPATH=. uv run ruff check backend/ --output-format=github
       continue-on-error: true
-    
+
     - name: Run black formatting check
       run: |
         PYTHONPATH=. uv run black --check --diff backend/
       continue-on-error: true
-    
+
     - name: Run isort import sorting check
       run: |
         PYTHONPATH=. uv run isort --check-only --diff backend/
       continue-on-error: true
-    
+
     - name: Run mypy type checking
       run: |
         PYTHONPATH=. uv run mypy backend/ --ignore-missing-imports
@@ -91,21 +91,21 @@ jobs:
   # Placeholder for frontend tests - add when frontend code is implemented
   # frontend-tests:
   #   runs-on: ubuntu-latest
-  #   
+  #
   #   steps:
   #   - uses: actions/checkout@v4
-  #   
+  #
   #   - name: Setup Node.js
   #     uses: actions/setup-node@v4
   #     with:
   #       node-version: '18'
   #       cache: 'npm'  # or 'yarn' depending on package manager
-  #   
+  #
   #   - name: Install frontend dependencies
   #     run: npm ci  # or yarn install --frozen-lockfile
-  #   
+  #
   #   - name: Run frontend tests
   #     run: npm test  # or yarn test
-  #   
+  #
   #   - name: Run frontend linting
   #     run: npm run lint  # or yarn lint
