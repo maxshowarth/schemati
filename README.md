@@ -1,5 +1,16 @@
 # schemati
-Extract critical information from P&ID diagrams and other similar schematics using ML on Databricks
+Extract critical information from P&ID diagrams and other similar schematics using ML on Databricks.
+
+## How It Works
+- P&ID diagrams in either PDF or image format are loaded from either a Databricks Volume or a local directory.
+- A `Document` object made up of `Page` objects is created for each file. We extract metdata from the `Page` objects using a foundation model.
+- Research on P&ID diagram has frequently noted that diagram understanding is improved when they are broken up into smaller components. Therefore, we allow `Page` objects to be split into `PageFragment` objects, which are smaller sections of the original page.
+- Each `PageFragment` is processed to extract critical information such as:
+  - Equipment tags
+  - Pipe tags
+  - Valve tags
+  - Instrument tags
+- We take the metadata extracted from the `PageFragment` objects, combine it and de-duplicate it into metadata for the original `Page` object.
 
 ## Components
 
