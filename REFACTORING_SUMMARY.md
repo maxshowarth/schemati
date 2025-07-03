@@ -55,7 +55,7 @@ The original `VolumeHandler` class is maintained as a wrapper around the new com
 
 ### New Approach (Recommended)
 ```python
-from backend.routers.volume import Volume, VolumeFileStore
+from backend.databricks.volume import Volume, VolumeFileStore
 from backend.auth import get_databricks_auth
 
 # Create volume identity
@@ -77,7 +77,7 @@ content = file_store.download_file_as_bytes("document.pdf")
 
 ### Helper Functions (Config-based)
 ```python
-from backend.routers.volume import create_volume_file_store_from_config
+from backend.databricks.volume import create_volume_file_store_from_config
 
 # Create with config defaults and optional overrides
 file_store = create_volume_file_store_from_config(
@@ -87,7 +87,7 @@ file_store = create_volume_file_store_from_config(
 
 ### Legacy Approach (Still Works)
 ```python
-from backend.routers.volume import VolumeHandler
+from backend.databricks.volume import VolumeHandler
 
 # Old way continues to work unchanged
 handler = VolumeHandler(catalog="catalog", schema="schema", volume_name="volume")

@@ -50,8 +50,8 @@ DATABRICKS_VOLUME=uploads
 
 ## Technical Details
 
-The frontend is built using:
+-The frontend is built using:
 - **Streamlit** - Web framework for the user interface
-- **VolumeHandler** - Backend class for Databricks volume operations
+- **VolumeFileStore** - Backend class for Databricks volume operations
 - **Temporary files** - Files are temporarily stored during upload process
 - **Error handling** - Comprehensive error handling and user feedback

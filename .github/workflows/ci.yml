@@ -46,7 +46,7 @@ jobs:
         PYTHONPATH=. uv run python -c "from backend.auth import DatabricksAuthentication"
         PYTHONPATH=. uv run python -c "from backend.config import get_config"
         PYTHONPATH=. uv run python -c "from backend.logging import get_logger"
-        PYTHONPATH=. uv run python -c "from backend.routers.volume import VolumeHandler"
+        PYTHONPATH=. uv run python -c "from backend.databricks.volume import VolumeHandler"
 
   code-quality:
     runs-on: ubuntu-latest
