@@ -1,8 +1,8 @@
 """Document parser for extracting data from P&ID pages using LLM."""
 
 import base64
-from typing import Dict, Any
-from backend.documents.document import Page
+from typing import Dict, Any, List
+from backend.documents.document import Page, Document
 from backend.llm.openai_client import OpenAIClient
 from backend.llm.prompt_loader import load_prompt
 from backend.logging import get_logger
@@ -75,3 +75,31 @@ class DocumentParser:
         except Exception as e:
             self.logger.error(f"Failed to parse page {page.page_number}: {e}")
             raise
+    
+    def parse_document(self, document: Document) -> List[str]:
+        """Parse an entire document and extract structured data from all pages.
+        
+        Args:
+            document: Document object containing multiple pages to parse
+            
+        Returns:
+            List[str]: List of parsed responses from the LLM for each page
+        """
+        self.logger.info(f"Parsing document with {len(document.pages)} pages")
+        
+        if not document.pages:
+            self.logger.warning("Document has no pages to parse")
+            return []
+        
+        results = []
+        for page in document.pages:
+            try:
+                result = self.parse_page(page)
+                results.append(result)
+            except Exception as e:
+                self.logger.error(f"Failed to parse page {page.page_number} in document: {e}")
+                # Continue processing other pages even if one fails
+                results.append(f"Error parsing page {page.page_number}: {str(e)}")
+        
+        self.logger.info(f"Successfully processed {len(results)} pages from document")
+        return results

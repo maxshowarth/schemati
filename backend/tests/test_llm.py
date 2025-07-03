@@ -5,8 +5,9 @@ from unittest.mock import Mock, patch, mock_open
 from backend.llm.openai_client import OpenAIClient
 from backend.llm.prompt_loader import load_prompt
 from backend.llm.document_parser import DocumentParser
-from backend.documents.document import Page
+from backend.documents.document import Page, Document
 from backend.config import set_config_for_test
+from pathlib import Path
 
 
 @pytest.fixture(autouse=True)
@@ -221,3 +222,69 @@ class TestDocumentParser:
         # Test
         with pytest.raises(Exception, match="LLM error"):
             parser.parse_page(page)
+    
+    @patch('backend.llm.document_parser.load_prompt')
+    def test_parse_document_success(self, mock_load_prompt):
+        """Test successful document parsing."""
+        # Setup
+        mock_client = Mock(spec=OpenAIClient)
+        mock_client.chat_completion.side_effect = ["Page 1 result", "Page 2 result"]
+        mock_load_prompt.return_value = "System prompt"
+        
+        parser = DocumentParser(mock_client)
+        
+        # Create document with two pages
+        page1 = Page(page_number=1, content=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82')
+        page2 = Page(page_number=2, content=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82')
+        document = Document(path=Path("/test/document.pdf"), pages=[page1, page2])
+        
+        # Test
+        results = parser.parse_document(document)
+        
+        # Verify
+        assert results == ["Page 1 result", "Page 2 result"]
+        assert mock_client.chat_completion.call_count == 2
+        assert mock_load_prompt.call_count == 2
+    
+    @patch('backend.llm.document_parser.load_prompt')
+    def test_parse_document_empty_pages(self, mock_load_prompt):
+        """Test document parsing with no pages."""
+        # Setup
+        mock_client = Mock(spec=OpenAIClient)
+        mock_load_prompt.return_value = "System prompt"
+        
+        parser = DocumentParser(mock_client)
+        document = Document(path=Path("/test/document.pdf"), pages=[])
+        
+        # Test
+        results = parser.parse_document(document)
+        
+        # Verify
+        assert results == []
+        mock_client.chat_completion.assert_not_called()
+    
+    @patch('backend.llm.document_parser.load_prompt')
+    def test_parse_document_with_page_error(self, mock_load_prompt):
+        """Test document parsing when one page fails."""
+        # Setup
+        mock_client = Mock(spec=OpenAIClient)
+        # First page succeeds, second page fails
+        mock_client.chat_completion.side_effect = ["Page 1 result", Exception("Page 2 error")]
+        mock_load_prompt.return_value = "System prompt"
+        
+        parser = DocumentParser(mock_client)
+        
+        # Create document with two pages
+        page1 = Page(page_number=1, content=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82')
+        page2 = Page(page_number=2, content=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82')
+        document = Document(path=Path("/test/document.pdf"), pages=[page1, page2])
+        
+        # Test
+        results = parser.parse_document(document)
+        
+        # Verify
+        assert len(results) == 2
+        assert results[0] == "Page 1 result"
+        assert "Error parsing page 2" in results[1]
+        assert "Page 2 error" in results[1]
+        assert mock_client.chat_completion.call_count == 2
