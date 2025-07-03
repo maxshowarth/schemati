@@ -75,7 +75,7 @@ class TestVolumeFileStore:
         mock_file1 = MagicMock(path="/Volumes/test_catalog/test_schema/test_volume/file1.txt")
         mock_file2 = MagicMock(path="/Volumes/test_catalog/test_schema/test_volume/file2.txt")
         file_store.client.files.list_directory_contents.return_value = [mock_file1, mock_file2]
-        
+
         files = file_store.list_files()
         assert files == [mock_file1.path, mock_file2.path]
         file_store.client.files.list_directory_contents.assert_called_once_with("/Volumes/test_catalog/test_schema/test_volume")
@@ -103,21 +103,21 @@ class TestVolumeFileStore:
         with tempfile.NamedTemporaryFile(delete=False, prefix="tmptest_", suffix="_original.txt") as tmp_file:
             tmp_file.write(b"test content")
             tmp_file_path = tmp_file.name
-        
+
         try:
             # Mock file_exists to return False (file doesn't exist)
             file_store.client.files.get_metadata.side_effect = Exception("Not found")
-            
+
             # Call upload_file with destination_filename
             result = file_store.upload_file(tmp_file_path, destination_filename="custom_name.txt")
-            
+
             # Verify the upload was called with the custom filename
             expected_volume_path = "/Volumes/test_catalog/test_schema/test_volume/custom_name.txt"
             file_store.client.files.upload.assert_called_once()
             args = file_store.client.files.upload.call_args
             assert args[0][0] == expected_volume_path  # First positional argument should be the volume path
             assert result is True
-            
+
         finally:
             # Clean up
             os.unlink(tmp_file_path)
@@ -128,14 +128,14 @@ class TestVolumeFileStore:
         with tempfile.NamedTemporaryFile(delete=False, prefix="tmptest_", suffix="_original.txt") as tmp_file:
             tmp_file.write(b"test content")
             tmp_file_path = tmp_file.name
-        
+
         try:
             # Mock file_exists to return False (file doesn't exist)
             file_store.client.files.get_metadata.side_effect = Exception("Not found")
-            
+
             # Call upload_file without destination_filename
             result = file_store.upload_file(tmp_file_path)
-            
+
             # Verify the upload was called with the basename of the temp file
             expected_filename = os.path.basename(tmp_file_path)
             expected_volume_path = f"/Volumes/test_catalog/test_schema/test_volume/{expected_filename}"
@@ -143,7 +143,7 @@ class TestVolumeFileStore:
             args = file_store.client.files.upload.call_args
             assert args[0][0] == expected_volume_path  # First positional argument should be the volume path
             assert result is True
-            
+
         finally:
             # Clean up
             os.unlink(tmp_file_path)
@@ -152,7 +152,7 @@ class TestVolumeFileStore:
         """Test that upload_file raises FileNotFoundError for non-existent local files."""
         with pytest.raises(FileNotFoundError) as exc_info:
             file_store.upload_file("/nonexistent/file.txt")
-        
+
         assert exc_info.value.file_path == "/nonexistent/file.txt"
         assert "does not exist" in str(exc_info.value)
 
@@ -162,19 +162,19 @@ class TestVolumeFileStore:
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(b"test content")
             tmp_file_path = tmp_file.name
-        
+
         try:
             # Mock file_exists to return True (file exists)
             file_store.client.files.get_metadata.return_value = MagicMock()
-            
+
             # Call upload_file with overwrite=False (default)
             with pytest.raises(FileAlreadyExistsError) as exc_info:
                 file_store.upload_file(tmp_file_path, destination_filename="existing.txt")
-            
+
             assert exc_info.value.filename == "existing.txt"
             assert exc_info.value.volume_name == "test_volume"
             assert "already exists" in str(exc_info.value)
-            
+
         finally:
             # Clean up
             os.unlink(tmp_file_path)
@@ -185,18 +185,18 @@ class TestVolumeFileStore:
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(b"test content")
             tmp_file_path = tmp_file.name
-        
+
         try:
             # Mock file_exists to return True (file exists)
             file_store.client.files.get_metadata.return_value = MagicMock()
-            
+
             # Call upload_file with overwrite=True
             result = file_store.upload_file(tmp_file_path, overwrite=True, destination_filename="existing.txt")
-            
+
             # Should succeed and return True
             assert result is True
             file_store.client.files.upload.assert_called_once()
-            
+
         finally:
             # Clean up
             os.unlink(tmp_file_path)
@@ -207,24 +207,24 @@ class TestVolumeFileStore:
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(b"test content")
             tmp_file_path = tmp_file.name
-        
+
         try:
             # Mock file_exists to return False (file doesn't exist)
             file_store.client.files.get_metadata.side_effect = Exception("Not found")
-            
+
             # Mock upload to raise an exception
             upload_error = Exception("Network timeout")
             file_store.client.files.upload.side_effect = upload_error
-            
+
             # Call upload_file
             with pytest.raises(VolumeUploadError) as exc_info:
                 file_store.upload_file(tmp_file_path, destination_filename="test.txt")
-            
+
             assert exc_info.value.file_path == tmp_file_path
             assert "test.txt" in exc_info.value.volume_path
             assert exc_info.value.original_error is upload_error
             assert "Network timeout" in str(exc_info.value)
-            
+
         finally:
             # Clean up
             os.unlink(tmp_file_path)
@@ -234,39 +234,22 @@ class TestVolumeFileStore:
         mock_response = MagicMock()
         mock_response.contents.read.return_value = b"file content"
         file_store.client.files.download.return_value = mock_response
-        
+
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             download_path = tmp_file.name
-        
+
         try:
             result = file_store.download_file("test.txt", download_path)
             assert result is True
             file_store.client.files.download.assert_called_once_with("/Volumes/test_catalog/test_schema/test_volume/test.txt")
-            
+
             # Verify file was written
             with open(download_path, "rb") as f:
                 content = f.read()
             assert content == b"file content"
-            
+
         finally:
             os.unlink(download_path)
-
-    def test_download_file_as_bytes_success(self, file_store):
-        """Test download_file_as_bytes successful download."""
-        mock_response = MagicMock()
-        mock_response.contents.read.return_value = b"file content"
-        file_store.client.files.download.return_value = mock_response
-        
-        result = file_store.download_file_as_bytes("test.txt")
-        assert result == b"file content"
-        file_store.client.files.download.assert_called_once_with("/Volumes/test_catalog/test_schema/test_volume/test.txt")
-
-    def test_download_file_as_bytes_error(self, file_store):
-        """Test download_file_as_bytes raises exception on error."""
-        file_store.client.files.download.side_effect = Exception("Download failed")
-        
-        with pytest.raises(Exception):
-            file_store.download_file_as_bytes("test.txt")
 
 
 class TestHelperFunctions:
@@ -279,7 +262,7 @@ class TestHelperFunctions:
             databricks_schema="default_schema",
             databricks_volume="default_volume",
         )
-        
+
         volume = create_volume_from_config()
         assert volume.catalog == "default_catalog"
         assert volume.schema_name == "default_schema"
@@ -292,7 +275,7 @@ class TestHelperFunctions:
             databricks_schema="config_schema",
             databricks_volume="config_volume"
         )
-        
+
         volume = create_volume_from_config(catalog="override_catalog", schema="override_schema")
         assert volume.catalog == "override_catalog"
         assert volume.schema_name == "override_schema"
@@ -305,10 +288,10 @@ class TestHelperFunctions:
             databricks_schema="config_schema",
             databricks_volume="config_volume"
         )
-        
+
         mock_client = MagicMock()
         file_store = create_volume_file_store_from_config(client=mock_client)
-        
+
         assert file_store.volume.catalog == "config_catalog"
         assert file_store.volume.schema_name == "config_schema"
         assert file_store.volume.volume_name == "config_volume"

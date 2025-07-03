@@ -2,6 +2,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import fitz  # PyMuPDF
+import tempfile
 
 from backend.models.document import Document, Page
 from backend.routers.volume import Volume, VolumeFileStore
@@ -26,14 +27,16 @@ class DocumentFactory:
         Returns:
             Document: The created Document object from the downloaded file.
         """
-        file_bytes = file_store.download_file_as_bytes(file_name)
         suffix = Path(file_name).suffix.lower()
-        if suffix in app_config.allowed_image_extensions:
-            return self._create_document_from_image_bytes(file_bytes, file_name)
-        elif suffix in app_config.allowed_pdf_extensions:
-            return self._create_document_from_pdf_bytes(file_bytes, file_name)
-        else:
-            raise ValueError(f"Unsupported file type: {suffix}")
+        with tempfile.NamedTemporaryFile(delete=True, suffix=suffix) as tmp_file:
+            file_store.download_file(file_name, tmp_file.name)
+            tmp_path = Path(tmp_file.name)
+            if suffix in app_config.allowed_image_extensions:
+                return self._create_document_from_image(tmp_path)
+            elif suffix in app_config.allowed_pdf_extensions:
+                return self._create_document_from_pdf(tmp_path)
+            else:
+                raise ValueError(f"Unsupported file type: {suffix}")
 
     def _create_document(self, path: Path) -> Document:
         """Creates a Document object from a local path handling multiple file types."""
@@ -50,7 +53,7 @@ class DocumentFactory:
         image = cv2.imread(str(path))
         if image is None:
             raise ValueError(f"Failed to read image from path: {path}")
-        page = Page(page_number=1, bytes=cv2.imencode(".jpg", image)[1].tobytes())
+        page = Page(page_number=1, content=cv2.imencode(".jpg", image)[1].tobytes())
         return Document(path=path, pages=[page])
 
     def _create_document_from_pdf(self, path: Path) -> Document:
@@ -63,35 +66,8 @@ class DocumentFactory:
                 img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
                 if img.shape[2] == 4:
                     img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
-                image_bytes = cv2.imencode(".jpg", img)[1].tobytes()
-                pages.append(Page(page_number=i + 1, bytes=image_bytes))
+                image_content = cv2.imencode(".jpg", img)[1].tobytes()
+                pages.append(Page(page_number=i + 1, content=image_content))
             return Document(path=path, pages=pages)
         except Exception as e:
             raise RuntimeError(f"Failed to convert PDF to images: {e}")
-
-    def _create_document_from_image_bytes(self, image_bytes: bytes, file_name: str) -> Document:
-        """Creates a Document object from image bytes."""
-        import io
-        image_array = np.frombuffer(image_bytes, dtype=np.uint8)
-        image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-        if image is None:
-            raise ValueError(f"Failed to decode image from bytes for file: {file_name}")
-        page = Page(page_number=1, bytes=cv2.imencode(".jpg", image)[1].tobytes())
-        return Document(path=Path(file_name), pages=[page])
-
-    def _create_document_from_pdf_bytes(self, pdf_bytes: bytes, file_name: str) -> Document:
-        """Creates a Document object from PDF bytes."""
-        import io
-        try:
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            pages = []
-            for i, page in enumerate(doc):
-                pix = page.get_pixmap(dpi=300)
-                img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
-                if img.shape[2] == 4:
-                    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
-                image_bytes = cv2.imencode(".jpg", img)[1].tobytes()
-                pages.append(Page(page_number=i + 1, bytes=image_bytes))
-            return Document(path=Path(file_name), pages=pages)
-        except Exception as e:
-            raise RuntimeError(f"Failed to convert PDF bytes to images: {e}")

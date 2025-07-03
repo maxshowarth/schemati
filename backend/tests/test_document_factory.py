@@ -16,7 +16,7 @@ def test_create_document_from_image(factory: DocumentFactory):
     assert isinstance(doc, Document)
     assert len(doc.pages) == 1
     assert doc.pages[0].page_number == 1
-    assert doc.pages[0].bytes is not None
+    assert doc.pages[0].content is not None
     assert doc.path == path
 
 def test_create_document_from_single_page_pdf(factory: DocumentFactory):
@@ -26,7 +26,7 @@ def test_create_document_from_single_page_pdf(factory: DocumentFactory):
     assert isinstance(doc, Document)
     assert len(doc.pages) == 1
     assert doc.pages[0].page_number == 1
-    assert doc.pages[0].bytes is not None
+    assert doc.pages[0].content is not None
     assert doc.path == path
 
 def test_create_document_from_multi_page_pdf(factory: DocumentFactory):
@@ -35,7 +35,7 @@ def test_create_document_from_multi_page_pdf(factory: DocumentFactory):
 
     assert isinstance(doc, Document)
     assert len(doc.pages) > 1
-    assert all(page.bytes is not None for page in doc.pages)
+    assert all(page.content is not None for page in doc.pages)
     assert [p.page_number for p in doc.pages] == list(range(1, len(doc.pages) + 1))
     assert doc.path == path
 

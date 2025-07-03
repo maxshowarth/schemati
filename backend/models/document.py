@@ -13,9 +13,9 @@ logger = get_logger(__name__)
 class PageFragment:
     """Class that holds a fragment of a document."""
 
-    def __init__(self, bytes: bytes, bbox: list[int]) -> None:
+    def __init__(self, content: bytes, bbox: list[int]) -> None:
         self.bbox = bbox
-        self.bytes = bytes
+        self.content = content
 
 class PageMetadata(BaseModel):
     """Class that holds metadata for a page."""
@@ -27,9 +27,9 @@ class DocumentMetadata(BaseModel):
 
 class Page:
     """Class that holds a page of a document."""
-    def __init__(self, page_number: int, bytes: bytes) -> None:
+    def __init__(self, page_number: int, content: bytes) -> None:
         self.page_number = page_number
-        self.bytes = bytes
+        self.content = content
         self.fragments: list[PageFragment] = []
         self.metadata: PageMetadata = PageMetadata()
 
