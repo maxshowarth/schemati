@@ -8,10 +8,31 @@ from backend.documents.document import Document, Page
 from backend.databricks.volume import Volume, VolumeFileStore
 from backend.config import get_config
 
-app_config = get_config()
-
 class DocumentFactory:
     """Factory class for creating Document objects from either a local path or Databricks volume."""
+
+    def _resize_image_if_needed(self, image: np.ndarray) -> np.ndarray:
+        """Resize image if it exceeds maximum dimensions while preserving aspect ratio."""
+        app_config = get_config()  # Get config dynamically
+        height, width = image.shape[:2]
+        max_width = app_config.image_max_width
+        max_height = app_config.image_max_height
+        
+        if width <= max_width and height <= max_height:
+            return image
+            
+        # Calculate scaling factor to fit within max dimensions
+        width_ratio = max_width / width
+        height_ratio = max_height / height
+        scale_factor = min(width_ratio, height_ratio)
+        
+        # Calculate new dimensions
+        new_width = int(width * scale_factor)
+        new_height = int(height * scale_factor)
+        
+        # Resize the image
+        resized = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+        return resized
 
     def from_disk(self, path: Path) -> Document:
         """Creates a Document object from a local path."""
@@ -27,6 +48,7 @@ class DocumentFactory:
         Returns:
             Document: The created Document object from the downloaded file.
         """
+        app_config = get_config()  # Get config dynamically
         suffix = Path(file_name).suffix.lower()
         with tempfile.NamedTemporaryFile(delete=True, suffix=suffix) as tmp_file:
             file_store.download_file(file_name, tmp_file.name)
@@ -40,6 +62,7 @@ class DocumentFactory:
 
     def _create_document(self, path: Path) -> Document:
         """Creates a Document object from a local path handling multiple file types."""
+        app_config = get_config()  # Get config dynamically
 
         if path.suffix.lower() in app_config.allowed_image_extensions:
             return self._create_document_from_image(path)
@@ -53,20 +76,30 @@ class DocumentFactory:
         image = cv2.imread(str(path))
         if image is None:
             raise ValueError(f"Failed to read image from path: {path}")
-        page = Page(page_number=1, content=cv2.imencode(".jpg", image)[1].tobytes())
+        
+        # Resize image if it exceeds maximum dimensions
+        resized_image = self._resize_image_if_needed(image)
+        
+        page = Page(page_number=1, content=cv2.imencode(".jpg", resized_image)[1].tobytes())
         return Document(path=path, pages=[page])
 
     def _create_document_from_pdf(self, path: Path) -> Document:
         """Creates a Document object from a PDF file, potentially with multiple pages."""
+        app_config = get_config()  # Get config dynamically
         try:
             doc = fitz.open(str(path))
             pages = []
             for i, page in enumerate(doc):
-                pix = page.get_pixmap(dpi=300)
+                # Use configurable DPI instead of hardcoded 300
+                pix = page.get_pixmap(dpi=app_config.image_dpi)
                 img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
                 if img.shape[2] == 4:
                     img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
-                image_content = cv2.imencode(".jpg", img)[1].tobytes()
+                
+                # Resize image if it exceeds maximum dimensions
+                resized_img = self._resize_image_if_needed(img)
+                
+                image_content = cv2.imencode(".jpg", resized_img)[1].tobytes()
                 pages.append(Page(page_number=i + 1, content=image_content))
             return Document(path=path, pages=pages)
         except Exception as e:
