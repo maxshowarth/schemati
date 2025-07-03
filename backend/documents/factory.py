@@ -11,6 +11,78 @@ from backend.config import get_config
 class DocumentFactory:
     """Factory class for creating Document objects from either a local path or Databricks volume."""
 
+    def get_preview_data(self, path: Path) -> list[dict]:
+        """Get preview data showing original and processed images for a file.
+        
+        Args:
+            path: Path to the file to preview
+            
+        Returns:
+            List of dictionaries containing original and processed image data.
+            Each dict has keys: 'page_number', 'original_image', 'processed_image', 'was_resized'
+        """
+        app_config = get_config()
+        
+        if path.suffix.lower() in app_config.allowed_image_extensions:
+            return self._get_image_preview_data(path)
+        elif path.suffix.lower() in app_config.allowed_pdf_extensions:
+            return self._get_pdf_preview_data(path)
+        else:
+            raise ValueError(f"Unsupported file type: {path.suffix}")
+
+    def _get_image_preview_data(self, path: Path) -> list[dict]:
+        """Get preview data for a single image file."""
+        image = cv2.imread(str(path))
+        if image is None:
+            raise ValueError(f"Failed to read image from path: {path}")
+        
+        # Get original and processed images
+        original_image = image.copy()
+        processed_image = self._resize_image_if_needed(image)
+        
+        # Check if resizing occurred
+        was_resized = not np.array_equal(original_image, processed_image)
+        
+        return [{
+            'page_number': 1,
+            'original_image': original_image,
+            'processed_image': processed_image,
+            'was_resized': was_resized
+        }]
+
+    def _get_pdf_preview_data(self, path: Path) -> list[dict]:
+        """Get preview data for a PDF file."""
+        app_config = get_config()
+        preview_data = []
+        
+        try:
+            doc = fitz.open(str(path))
+            for i, page in enumerate(doc):
+                # Convert page to image
+                pix = page.get_pixmap(dpi=app_config.image_dpi)
+                img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+                if img.shape[2] == 4:
+                    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+                
+                # Get original and processed images
+                original_image = img.copy()
+                processed_image = self._resize_image_if_needed(img)
+                
+                # Check if resizing occurred
+                was_resized = not np.array_equal(original_image, processed_image)
+                
+                preview_data.append({
+                    'page_number': i + 1,
+                    'original_image': original_image,
+                    'processed_image': processed_image,
+                    'was_resized': was_resized
+                })
+            
+            return preview_data
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to preview PDF: {e}")
+
     def _resize_image_if_needed(self, image: np.ndarray) -> np.ndarray:
         """Resize image if it exceeds maximum dimensions while preserving aspect ratio."""
         app_config = get_config()  # Get config dynamically

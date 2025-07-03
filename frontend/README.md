@@ -5,6 +5,7 @@ A simple Streamlit web application for uploading files to Databricks volumes.
 ## Features
 
 - **Drag-and-drop file upload** - Simply drag files onto the upload area or click to browse
+- **Image processing preview** - See both original and processed versions of images/PDFs before upload
 - **Multiple file support** - Upload multiple files at once
 - **Overwrite option** - Checkbox to control whether existing files should be overwritten
 - **Real-time feedback** - Progress bar and status updates during upload
@@ -22,7 +23,11 @@ A simple Streamlit web application for uploading files to Databricks volumes.
 4. Use the interface to upload files:
    - Check/uncheck the "Overwrite existing files" option as needed
    - Drag files onto the upload area or click to select files
-   - Click "Upload Files" to start the upload process
+   - **Preview Tab**: View how your images/PDFs will be processed before uploading
+     - See original vs. processed versions side-by-side
+     - Check if files will be resized and by how much
+     - Verify processing quality before proceeding
+   - **Upload Tab**: Click "Upload Files" to start the upload process
 
 ## Configuration
 

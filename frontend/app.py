@@ -10,6 +10,10 @@ import tempfile
 import os
 import sys
 from pathlib import Path
+import cv2
+import numpy as np
+from io import BytesIO
+from PIL import Image
 
 # Add the parent directory to sys.path to import backend modules
 sys.path.append(str(Path(__file__).parent.parent))
@@ -17,6 +21,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from backend.databricks.volume import create_volume_file_store_from_config
 from backend.logging import get_logger
 from backend.exceptions import FileAlreadyExistsError, FileNotFoundError, VolumeUploadError
+from backend.documents.factory import DocumentFactory
 
 logger = get_logger(__name__)
 
@@ -82,18 +87,91 @@ def main():
     )
     
     if uploaded_files:
-        st.subheader("Selected Files")
+        st.subheader("File Preview")
         
-        # Display file information
-        for file in uploaded_files:
-            with st.expander(f"📄 {file.name} ({file.size:,} bytes)"):
-                st.write(f"**Name:** {file.name}")
-                st.write(f"**Size:** {file.size:,} bytes")
-                st.write(f"**Type:** {file.type}")
+        # Create tabs for preview and upload
+        preview_tab, upload_tab = st.tabs(["📋 Preview Processing", "🚀 Upload Files"])
         
-        # Upload button
-        if st.button("🚀 Upload Files", type="primary"):
-            upload_files(uploaded_files, file_store, overwrite)
+        with preview_tab:
+            st.markdown("**Preview how your files will be processed before uploading:**")
+            
+            # Process each file for preview
+            preview_data = {}
+            for uploaded_file in uploaded_files:
+                try:
+                    # Save uploaded file temporarily for preview
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{uploaded_file.name}") as tmp_file:
+                        tmp_file.write(uploaded_file.getvalue())
+                        tmp_file_path = Path(tmp_file.name)
+                        
+                        # Get preview data using DocumentFactory
+                        factory = DocumentFactory()
+                        file_preview = factory.get_preview_data(tmp_file_path)
+                        preview_data[uploaded_file.name] = file_preview
+                        
+                        # Clean up temporary file
+                        os.unlink(tmp_file.name)
+                        
+                except Exception as e:
+                    st.error(f"❌ Failed to preview {uploaded_file.name}: {str(e)}")
+                    continue
+            
+            # Display preview for each file
+            for filename, pages in preview_data.items():
+                with st.expander(f"📄 {filename} - {len(pages)} page(s)"):
+                    for page_data in pages:
+                        show_image_comparison(page_data, filename, len(pages))
+        
+        with upload_tab:
+            st.subheader("Selected Files")
+            
+            # Display file information
+            for file in uploaded_files:
+                with st.expander(f"📄 {file.name} ({file.size:,} bytes)"):
+                    st.write(f"**Name:** {file.name}")
+                    st.write(f"**Size:** {file.size:,} bytes")
+                    st.write(f"**Type:** {file.type}")
+            
+            # Upload button
+            if st.button("🚀 Upload Files", type="primary"):
+                upload_files(uploaded_files, file_store, overwrite)
+
+def show_image_comparison(page_data, filename, total_pages):
+    """Display side-by-side comparison of original vs processed image."""
+    page_num = page_data['page_number']
+    original = page_data['original_image']
+    processed = page_data['processed_image']
+    was_resized = page_data['was_resized']
+    
+    if total_pages > 1:  # Multi-page document
+        st.markdown(f"**Page {page_num}:**")
+    
+    if was_resized:
+        st.info(f"🔄 This {'page' if total_pages > 1 else 'image'} will be resized during processing.")
+        
+        # Create two columns for side-by-side comparison
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Original:**")
+            # Convert from BGR to RGB for display
+            original_rgb = cv2.cvtColor(original, cv2.COLOR_BGR2RGB)
+            st.image(original_rgb, use_container_width=True)
+            st.caption(f"Size: {original.shape[1]}×{original.shape[0]}")
+        
+        with col2:
+            st.markdown("**After Processing:**")
+            # Convert from BGR to RGB for display
+            processed_rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
+            st.image(processed_rgb, use_container_width=True)
+            st.caption(f"Size: {processed.shape[1]}×{processed.shape[0]}")
+    else:
+        st.success(f"✅ This {'page' if total_pages > 1 else 'image'} is within size limits and will not be resized.")
+        
+        # Show just the original image
+        original_rgb = cv2.cvtColor(original, cv2.COLOR_BGR2RGB)
+        st.image(original_rgb, use_container_width=True)
+        st.caption(f"Size: {original.shape[1]}×{original.shape[0]}")
 
 def upload_files(uploaded_files, file_store, overwrite):
     """Upload files to Databricks volume."""
