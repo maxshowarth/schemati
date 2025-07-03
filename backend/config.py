@@ -31,6 +31,12 @@ class AppConfig(BaseSettings):
     image_max_width: int = 2048
     image_max_height: int = 2048
 
+    # OpenAI/LLM
+    openai_base_url: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    openai_model: str = "gpt-4o"  # Default to GPT-4o for vision capabilities
+    openai_temperature: float = 0.1  # Low temperature for consistent extraction
+    openai_max_tokens: int = 4000  # Maximum tokens for response
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

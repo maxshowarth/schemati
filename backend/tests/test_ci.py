@@ -13,6 +13,10 @@ def test_imports():
         import backend.config
         import backend.databricks.auth
         import backend.logging
+        import backend.llm
+        import backend.llm.openai_client
+        import backend.llm.document_parser
+        import backend.llm.prompt_loader
         assert True
     except ImportError as e:
         assert False, f"Failed to import backend modules: {e}"
