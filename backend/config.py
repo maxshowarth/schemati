@@ -31,6 +31,9 @@ class AppConfig(BaseSettings):
     image_max_width: int = 2048
     image_max_height: int = 2048
 
+    # OpenAI/LLM
+    openai_base_url: Optional[str] = None
+    openai_api_key: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
