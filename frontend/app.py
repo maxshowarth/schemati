@@ -14,6 +14,7 @@ import cv2
 import numpy as np
 from io import BytesIO
 from PIL import Image
+import fitz  # PyMuPDF
 
 # Add the parent directory to sys.path to import backend modules
 sys.path.append(str(Path(__file__).parent.parent))
@@ -22,6 +23,7 @@ from backend.databricks.volume import create_volume_file_store_from_config
 from backend.logging import get_logger
 from backend.exceptions import FileAlreadyExistsError, FileNotFoundError, VolumeUploadError
 from backend.documents.factory import DocumentFactory
+from backend.config import get_config
 
 logger = get_logger(__name__)
 
@@ -30,6 +32,109 @@ st.set_page_config(
     page_icon="📁",
     layout="wide"
 )
+
+def resize_image_if_needed(image: np.ndarray) -> np.ndarray:
+    """Resize image if it exceeds maximum dimensions while preserving aspect ratio."""
+    app_config = get_config()
+    height, width = image.shape[:2]
+    max_width = app_config.image_max_width
+    max_height = app_config.image_max_height
+    
+    if width <= max_width and height <= max_height:
+        return image
+        
+    # Calculate scaling factor to fit within max dimensions
+    width_ratio = max_width / width
+    height_ratio = max_height / height
+    scale_factor = min(width_ratio, height_ratio)
+    
+    # Calculate new dimensions
+    new_width = int(width * scale_factor)
+    new_height = int(height * scale_factor)
+    
+    # Resize the image
+    resized = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    return resized
+
+def get_preview_data_for_image(file_bytes: bytes, filename: str) -> list[dict]:
+    """Get preview data for a single image file."""
+    # Convert bytes to numpy array
+    nparr = np.frombuffer(file_bytes, np.uint8)
+    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    if image is None:
+        raise ValueError(f"Failed to read image from file: {filename}")
+    
+    # Get original and processed images
+    original_image = image.copy()
+    processed_image = resize_image_if_needed(image)
+    
+    # Check if resizing occurred
+    was_resized = not np.array_equal(original_image, processed_image)
+    
+    return [{
+        'page_number': 1,
+        'original_image': original_image,
+        'processed_image': processed_image,
+        'was_resized': was_resized
+    }]
+
+def get_preview_data_for_pdf(file_bytes: bytes, filename: str) -> list[dict]:
+    """Get preview data for a PDF file."""
+    app_config = get_config()
+    preview_data = []
+    
+    try:
+        # Create temporary file for PDF processing
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
+            tmp_file.write(file_bytes)
+            tmp_file_path = tmp_file.name
+            
+        try:
+            doc = fitz.open(tmp_file_path)
+            for i, page in enumerate(doc):
+                # Convert page to image
+                pix = page.get_pixmap(dpi=app_config.image_dpi)
+                img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+                if img.shape[2] == 4:
+                    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+                
+                # Get original and processed images
+                original_image = img.copy()
+                processed_image = resize_image_if_needed(img)
+                
+                # Check if resizing occurred
+                was_resized = not np.array_equal(original_image, processed_image)
+                
+                preview_data.append({
+                    'page_number': i + 1,
+                    'original_image': original_image,
+                    'processed_image': processed_image,
+                    'was_resized': was_resized
+                })
+            
+            return preview_data
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+            
+    except Exception as e:
+        raise RuntimeError(f"Failed to preview PDF {filename}: {e}")
+
+def get_preview_data(uploaded_file) -> list[dict]:
+    """Get preview data for any supported file type."""
+    app_config = get_config()
+    file_extension = Path(uploaded_file.name).suffix.lower()
+    file_bytes = uploaded_file.getvalue()
+    
+    if file_extension in app_config.allowed_image_extensions:
+        return get_preview_data_for_image(file_bytes, uploaded_file.name)
+    elif file_extension in app_config.allowed_pdf_extensions:
+        return get_preview_data_for_pdf(file_bytes, uploaded_file.name)
+    else:
+        raise ValueError(f"Unsupported file type: {file_extension}")
 
 def main():
     """Main Streamlit application."""
@@ -99,18 +204,9 @@ def main():
             preview_data = {}
             for uploaded_file in uploaded_files:
                 try:
-                    # Save uploaded file temporarily for preview
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{uploaded_file.name}") as tmp_file:
-                        tmp_file.write(uploaded_file.getvalue())
-                        tmp_file_path = Path(tmp_file.name)
-                        
-                        # Get preview data using DocumentFactory
-                        factory = DocumentFactory()
-                        file_preview = factory.get_preview_data(tmp_file_path)
-                        preview_data[uploaded_file.name] = file_preview
-                        
-                        # Clean up temporary file
-                        os.unlink(tmp_file.name)
+                    # Get preview data directly from uploaded file
+                    file_preview = get_preview_data(uploaded_file)
+                    preview_data[uploaded_file.name] = file_preview
                         
                 except Exception as e:
                     st.error(f"❌ Failed to preview {uploaded_file.name}: {str(e)}")
