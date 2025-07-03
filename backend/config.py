@@ -8,6 +8,7 @@ class AppConfig(BaseSettings):
     Loads configuration from environment variables and .env file (if present).
     Fields are type-checked and validated. Defaults are provided where appropriate.
     """
+    # Databricks
     databricks_host: Optional[str] = None
     databricks_token: Optional[str] = None
     databricks_client_id: Optional[str] = None
@@ -18,8 +19,13 @@ class AppConfig(BaseSettings):
     databricks_catalog: Optional[str] = None
     databricks_schema: Optional[str] = None
     databricks_volume: Optional[str] = None
+
+    # Application
     app_env: str = "local"
     log_level: str = "DEBUG"
+    allowed_image_extensions: list[str] = [".jpg", ".jpeg", ".png"]
+    allowed_pdf_extensions: list[str] = [".pdf"]
+
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
