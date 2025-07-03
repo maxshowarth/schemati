@@ -4,7 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 from databricks.sdk import WorkspaceClient
 
-from backend.auth import get_databricks_auth
+from backend.databricks.auth import get_databricks_auth
 from backend.config import get_config
 from backend.logging import get_logger
 from backend.exceptions import FileAlreadyExistsError, FileNotFoundError, VolumeUploadError

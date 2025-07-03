@@ -2,7 +2,12 @@ import pytest
 import tempfile
 import os
 from unittest.mock import MagicMock
-from backend.routers.volume import Volume, VolumeFileStore, create_volume_from_config, create_volume_file_store_from_config
+from backend.databricks.volume import (
+    Volume,
+    VolumeFileStore,
+    create_volume_from_config,
+    create_volume_file_store_from_config,
+)
 from backend.config import set_config_for_test
 from backend.exceptions import FileAlreadyExistsError, FileNotFoundError, VolumeUploadError
 

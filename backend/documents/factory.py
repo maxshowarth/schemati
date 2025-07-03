@@ -4,8 +4,8 @@ import numpy as np
 import fitz  # PyMuPDF
 import tempfile
 
-from backend.models.document import Document, Page
-from backend.routers.volume import Volume, VolumeFileStore
+from backend.documents.document import Document, Page
+from backend.databricks.volume import Volume, VolumeFileStore
 from backend.config import get_config
 
 app_config = get_config()

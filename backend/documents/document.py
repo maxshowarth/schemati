@@ -3,7 +3,7 @@ from typing import List, Optional, Union
 
 from pydantic import BaseModel
 from backend.config import get_config
-from backend.auth import get_databricks_auth
+from backend.databricks.auth import get_databricks_auth
 from backend.logging import get_logger
 
 

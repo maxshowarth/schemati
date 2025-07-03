@@ -15,8 +15,8 @@ Extract critical information from P&ID diagrams and other similar schematics usi
 ## Components
 
 ### Backend
-Contains the core functionality for interacting with Databricks volumes, including:
-- `VolumeHandler` class for file operations
+-Contains the core functionality for interacting with Databricks volumes, including:
+- `VolumeFileStore` class for file operations
 - Authentication and configuration management
 - Logging utilities
 

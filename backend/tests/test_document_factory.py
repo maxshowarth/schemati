@@ -1,13 +1,17 @@
-import pytest
 from pathlib import Path
-from backend.routers.factories.document_factory import DocumentFactory
-from backend.models.document import Document
+
+import pytest
+
+from backend.documents.document import Document
+from backend.documents.factory import DocumentFactory
 
 ASSETS_DIR = Path(__file__).parent / "assets"
+
 
 @pytest.fixture
 def factory() -> DocumentFactory:
     return DocumentFactory()
+
 
 def test_create_document_from_image(factory: DocumentFactory):
     path = ASSETS_DIR / "test_image.jpg"
@@ -19,6 +23,7 @@ def test_create_document_from_image(factory: DocumentFactory):
     assert doc.pages[0].content is not None
     assert doc.path == path
 
+
 def test_create_document_from_single_page_pdf(factory: DocumentFactory):
     path = ASSETS_DIR / "test_single_pg_pdf.pdf"
     doc = factory.from_disk(path)
@@ -29,6 +34,7 @@ def test_create_document_from_single_page_pdf(factory: DocumentFactory):
     assert doc.pages[0].content is not None
     assert doc.path == path
 
+
 def test_create_document_from_multi_page_pdf(factory: DocumentFactory):
     path = ASSETS_DIR / "test_multi_pg_pdf.pdf"
     doc = factory.from_disk(path)
@@ -38,6 +44,7 @@ def test_create_document_from_multi_page_pdf(factory: DocumentFactory):
     assert all(page.content is not None for page in doc.pages)
     assert [p.page_number for p in doc.pages] == list(range(1, len(doc.pages) + 1))
     assert doc.path == path
+
 
 def test_unsupported_file_type_raises(factory: DocumentFactory):
     unsupported = ASSETS_DIR / "unsupported.txt"

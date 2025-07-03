@@ -14,7 +14,7 @@ from pathlib import Path
 # Add the parent directory to sys.path to import backend modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from backend.routers.volume import create_volume_file_store_from_config
+from backend.databricks.volume import create_volume_file_store_from_config
 from backend.logging import get_logger
 from backend.exceptions import FileAlreadyExistsError, FileNotFoundError, VolumeUploadError
 

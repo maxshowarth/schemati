@@ -1,5 +1,5 @@
 import pytest
-from backend.auth import DatabricksAuthentication
+from backend.databricks.auth import DatabricksAuthentication
 from backend.config import set_config_for_test, get_config
 
 class MockDatabricksConfig:
