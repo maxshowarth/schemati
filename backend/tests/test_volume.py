@@ -8,7 +8,7 @@ from backend.exceptions import FileAlreadyExistsError, FileNotFoundError, Volume
 
 @pytest.fixture
 def handler():
-    return VolumeHandler(catalog="test_catalog", schema="test_schema", volume_name="test_volume")
+    return VolumeHandler(catalog="test_catalog", schema="test_schema", volume_name="test_volume", client=MagicMock())
 
 def test_volume_exists_true(handler):
     mock_client = MagicMock()
@@ -46,7 +46,9 @@ def test_volumehandler_uses_config_defaults():
         databricks_schema="default_schema",
         databricks_volume="default_volume",
     )
-    vh = VolumeHandler()
+    # Provide a mock client to avoid auth issues while still testing config defaults
+    mock_client = MagicMock()
+    vh = VolumeHandler(client=mock_client)
     assert vh.catalog == "default_catalog"
     assert vh.schema == "default_schema"
     assert vh.volume_name == "default_volume"
