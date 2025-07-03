@@ -34,10 +34,10 @@ class Page:
         self.metadata: PageMetadata = PageMetadata()
 
 class Document:
-    """Class that holds a document and it's metadata.
+    """Class that holds a document and its metadata.
 
     A document is a collection of pages. Each
-    page is a collection of fragments. A page and it's fragments are essentially an image that can
+    page is a collection of fragments. A page and its fragments are essentially an image that can
     be sent to an LLM for processing.
     """
 
