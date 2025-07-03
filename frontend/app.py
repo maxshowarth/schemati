@@ -33,78 +33,95 @@ st.set_page_config(
     layout="wide"
 )
 
-def resize_image_if_needed(image: np.ndarray) -> np.ndarray:
-    """Resize image if it exceeds maximum dimensions while preserving aspect ratio."""
-    app_config = get_config()
-    height, width = image.shape[:2]
-    max_width = app_config.image_max_width
-    max_height = app_config.image_max_height
-    
-    if width <= max_width and height <= max_height:
-        return image
-        
-    # Calculate scaling factor to fit within max dimensions
-    width_ratio = max_width / width
-    height_ratio = max_height / height
-    scale_factor = min(width_ratio, height_ratio)
-    
-    # Calculate new dimensions
-    new_width = int(width * scale_factor)
-    new_height = int(height * scale_factor)
-    
-    # Resize the image
-    resized = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
-    return resized
-
 def get_preview_data_for_image(file_bytes: bytes, filename: str) -> list[dict]:
-    """Get preview data for a single image file."""
-    # Convert bytes to numpy array
-    nparr = np.frombuffer(file_bytes, np.uint8)
-    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    """Get preview data for a single image file using native loaders and Document processing."""
+    # Load original image using PIL (native frontend loader)
+    try:
+        original_pil = Image.open(BytesIO(file_bytes))
+        original_array = np.array(original_pil)
+        # Convert RGB to BGR for OpenCV compatibility in display
+        if len(original_array.shape) == 3 and original_array.shape[2] == 3:
+            original_image = cv2.cvtColor(original_array, cv2.COLOR_RGB2BGR)
+        else:
+            original_image = original_array
+    except Exception as e:
+        raise ValueError(f"Failed to load original image {filename}: {e}")
     
-    if image is None:
-        raise ValueError(f"Failed to read image from file: {filename}")
-    
-    # Get original and processed images
-    original_image = image.copy()
-    processed_image = resize_image_if_needed(image)
-    
-    # Check if resizing occurred
-    was_resized = not np.array_equal(original_image, processed_image)
-    
-    return [{
-        'page_number': 1,
-        'original_image': original_image,
-        'processed_image': processed_image,
-        'was_resized': was_resized
-    }]
+    # Create Document using DocumentFactory to get processed content
+    try:
+        with tempfile.NamedTemporaryFile(suffix=Path(filename).suffix, delete=False) as tmp_file:
+            tmp_file.write(file_bytes)
+            tmp_file_path = tmp_file.name
+            
+        try:
+            factory = DocumentFactory()
+            document = factory.from_disk(Path(tmp_file_path))
+            
+            # Extract processed image from Document.pages[0].content
+            page_content = document.pages[0].content
+            processed_array = np.frombuffer(page_content, np.uint8)
+            processed_image = cv2.imdecode(processed_array, cv2.IMREAD_COLOR)
+            
+            if processed_image is None:
+                raise ValueError("Failed to decode processed image from Document")
+            
+            # Check if resizing occurred by comparing dimensions
+            was_resized = (original_image.shape[:2] != processed_image.shape[:2])
+            
+            return [{
+                'page_number': 1,
+                'original_image': original_image,
+                'processed_image': processed_image,
+                'was_resized': was_resized
+            }]
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+                
+    except Exception as e:
+        raise RuntimeError(f"Failed to create Document for {filename}: {e}")
 
 def get_preview_data_for_pdf(file_bytes: bytes, filename: str) -> list[dict]:
-    """Get preview data for a PDF file."""
+    """Get preview data for a PDF file using native loaders and Document processing."""
     app_config = get_config()
     preview_data = []
     
     try:
-        # Create temporary file for PDF processing
+        # Create temporary file for processing
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
             tmp_file.write(file_bytes)
             tmp_file_path = tmp_file.name
             
         try:
-            doc = fitz.open(tmp_file_path)
-            for i, page in enumerate(doc):
-                # Convert page to image
-                pix = page.get_pixmap(dpi=app_config.image_dpi)
-                img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
-                if img.shape[2] == 4:
-                    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+            # Load original PDF using PyMuPDF (native frontend loader)
+            original_doc = fitz.open(tmp_file_path)
+            
+            # Create Document using DocumentFactory to get processed content
+            factory = DocumentFactory()
+            document = factory.from_disk(Path(tmp_file_path))
+            
+            # Process each page
+            for i, (original_page, document_page) in enumerate(zip(original_doc, document.pages)):
+                # Get original page as image using native loader
+                pix = original_page.get_pixmap(dpi=app_config.image_dpi)
+                original_array = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+                if original_array.shape[2] == 4:
+                    original_array = cv2.cvtColor(original_array, cv2.COLOR_RGBA2RGB)
+                # Convert RGB to BGR for OpenCV compatibility
+                original_image = cv2.cvtColor(original_array, cv2.COLOR_RGB2BGR)
                 
-                # Get original and processed images
-                original_image = img.copy()
-                processed_image = resize_image_if_needed(img)
+                # Extract processed image from Document.pages[i].content
+                page_content = document_page.content
+                processed_array = np.frombuffer(page_content, np.uint8)
+                processed_image = cv2.imdecode(processed_array, cv2.IMREAD_COLOR)
                 
-                # Check if resizing occurred
-                was_resized = not np.array_equal(original_image, processed_image)
+                if processed_image is None:
+                    raise ValueError(f"Failed to decode processed page {i+1} from Document")
+                
+                # Check if resizing occurred by comparing dimensions
+                was_resized = (original_image.shape[:2] != processed_image.shape[:2])
                 
                 preview_data.append({
                     'page_number': i + 1,

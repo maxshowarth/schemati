@@ -15,9 +15,9 @@ from backend.config import set_config_for_test
 
 
 def test_frontend_preview_integration():
-    """Test that frontend can properly process files for preview without backend dependency."""
+    """Test that frontend can properly process files for preview using Document processing."""
     # Import the frontend preview functions
-    from frontend.app import get_preview_data_for_image, resize_image_if_needed
+    from frontend.app import get_preview_data_for_image
     
     # Set test configuration
     set_config_for_test(
@@ -27,7 +27,7 @@ def test_frontend_preview_integration():
     )
     
     try:
-        # Create a test image
+        # Create a test image that should be resized (larger than limits)
         test_image = np.zeros((1000, 1500, 3), dtype=np.uint8)
         test_image[:, :, 0] = 255  # Red image
         
@@ -61,15 +61,21 @@ def test_frontend_preview_integration():
         # Check that was_resized is boolean
         assert isinstance(page_data['was_resized'], bool)
         
-        # Test resize functionality
-        large_image = np.zeros((2000, 3000, 3), dtype=np.uint8)
-        resized_image = resize_image_if_needed(large_image)
+        # For a large image, it should be resized by the Document processing
+        assert page_data['was_resized'] == True, "Large image should be resized"
         
-        # Should be resized to fit within limits
-        assert resized_image.shape[0] <= 768  # Height
-        assert resized_image.shape[1] <= 1024  # Width
+        # Check that processed image fits within limits (Document processing should resize it)
+        processed_shape = page_data['processed_image'].shape
+        assert processed_shape[0] <= 768, f"Processed height {processed_shape[0]} exceeds limit 768"
+        assert processed_shape[1] <= 1024, f"Processed width {processed_shape[1]} exceeds limit 1024"
+        
+        # Original should be larger than processed
+        original_shape = page_data['original_image'].shape
+        assert original_shape[0] > processed_shape[0] or original_shape[1] > processed_shape[1], "Original should be larger than processed"
         
         print("✅ Frontend integration test passed!")
+        print(f"   Original: {original_shape[1]}×{original_shape[0]}")
+        print(f"   Processed: {processed_shape[1]}×{processed_shape[0]}")
         
     finally:
         # Reset config to defaults
