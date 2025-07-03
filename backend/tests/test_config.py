@@ -7,7 +7,9 @@ def clear_env(monkeypatch):
     for var in [
         "DATABRICKS_HOST", "DATABRICKS_TOKEN", "DATABRICKS_CLIENT_ID", "DATABRICKS_CLIENT_SECRET",
         "DATABRICKS_WORKSPACE_ID", "DATABRICKS_ACCOUNT_ID", "DATABRICKS_CONFIG_PROFILE", "APP_ENV", "LOG_LEVEL",
-        "IMAGE_DPI", "IMAGE_MAX_WIDTH", "IMAGE_MAX_HEIGHT"
+        "IMAGE_DPI", "IMAGE_MAX_WIDTH", "IMAGE_MAX_HEIGHT",
+        "FRAGMENT_TILE_WIDTH", "FRAGMENT_TILE_HEIGHT", "FRAGMENT_OVERLAP_RATIO", 
+        "FRAGMENT_COMPLEXITY_THRESHOLD", "FRAGMENT_DYNAMIC_ENABLED"
     ]:
         monkeypatch.delenv(var, raising=False)
 
@@ -63,3 +65,42 @@ class TestAppConfig:
         assert config.image_dpi == 150
         assert config.image_max_width == 1024
         assert config.image_max_height == 768
+
+    def test_fragment_config_defaults(self):
+        """Test that fragment configuration defaults are set properly."""
+        config = AppConfig()
+        assert config.fragment_tile_width == 1024
+        assert config.fragment_tile_height == 1024
+        assert config.fragment_overlap_ratio == 0.1
+        assert config.fragment_complexity_threshold == 0.03
+        assert config.fragment_dynamic_enabled is False
+
+    def test_fragment_config_env_loading(self, monkeypatch):
+        """Test that fragment configuration loads from environment variables."""
+        monkeypatch.setenv("FRAGMENT_TILE_WIDTH", "512")
+        monkeypatch.setenv("FRAGMENT_TILE_HEIGHT", "768")
+        monkeypatch.setenv("FRAGMENT_OVERLAP_RATIO", "0.2")
+        monkeypatch.setenv("FRAGMENT_COMPLEXITY_THRESHOLD", "0.05")
+        monkeypatch.setenv("FRAGMENT_DYNAMIC_ENABLED", "true")
+        
+        config = AppConfig()
+        assert config.fragment_tile_width == 512
+        assert config.fragment_tile_height == 768
+        assert config.fragment_overlap_ratio == 0.2
+        assert config.fragment_complexity_threshold == 0.05
+        assert config.fragment_dynamic_enabled is True
+
+    def test_fragment_config_validation(self):
+        """Test that fragment configuration values are validated."""
+        config = AppConfig(
+            fragment_tile_width=2048,
+            fragment_tile_height=1536,
+            fragment_overlap_ratio=0.15,
+            fragment_complexity_threshold=0.02,
+            fragment_dynamic_enabled=True
+        )
+        assert config.fragment_tile_width == 2048
+        assert config.fragment_tile_height == 1536
+        assert config.fragment_overlap_ratio == 0.15
+        assert config.fragment_complexity_threshold == 0.02
+        assert config.fragment_dynamic_enabled is True

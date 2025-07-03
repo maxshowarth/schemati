@@ -31,6 +31,13 @@ class AppConfig(BaseSettings):
     image_max_width: int = 2048
     image_max_height: int = 2048
 
+    # Fragment configuration
+    fragment_tile_width: int = 1024
+    fragment_tile_height: int = 1024
+    fragment_overlap_ratio: float = 0.1
+    fragment_complexity_threshold: float = 0.03
+    fragment_dynamic_enabled: bool = False
+
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
