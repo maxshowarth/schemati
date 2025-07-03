@@ -1,18 +1,16 @@
 """Tests for document fragmentation functionality."""
 
-import pytest
-import numpy as np
 import cv2
-from unittest.mock import patch
+import numpy as np
 
+from backend.config import set_config_for_test
 from backend.documents.document import Page, PageFragment
 from backend.documents.fragmenter import Fragmenter
-from backend.config import set_config_for_test
 
 
 class TestFragmenter:
     """Test the Fragmenter class."""
-    
+
     def setup_method(self):
         """Set up test configuration."""
         set_config_for_test(
@@ -20,9 +18,9 @@ class TestFragmenter:
             fragment_tile_height=100,
             fragment_overlap_ratio=0.1,
             fragment_complexity_threshold=0.03,
-            fragment_dynamic_enabled=False
+            fragment_dynamic_enabled=False,
         )
-    
+
     def _create_test_image(self, width: int, height: int, content_type: str = "white") -> bytes:
         """Create a test image with specified dimensions and content type."""
         if content_type == "white":
@@ -39,156 +37,156 @@ class TestFragmenter:
             cv2.rectangle(image, (20, 20), (width-20, height-20), (128, 128, 128), -1)
         else:
             raise ValueError(f"Unknown content type: {content_type}")
-        
-        success, encoded = cv2.imencode('.jpg', image)
+
+        success, encoded = cv2.imencode(".jpg", image)
         if not success:
             raise RuntimeError("Failed to encode test image")
-        
+
         return encoded.tobytes()
-    
+
     def test_tile_page_basic(self):
         """Test basic page fragmentation."""
         # Create a 300x300 image
         image_bytes = self._create_test_image(300, 300, "complex")
         page = Page(page_number=1, content=image_bytes)
-        
+
         fragments = Fragmenter.tile_page(page)
-        
+
         # Should create multiple fragments
         assert len(fragments) > 0
         assert all(isinstance(f, PageFragment) for f in fragments)
         assert all(len(f.bbox) == 4 for f in fragments)
         assert all(f.content for f in fragments)
-    
+
     def test_tile_page_with_custom_tile_size(self):
         """Test fragmentation with custom tile size."""
         image_bytes = self._create_test_image(200, 200, "complex")
         page = Page(page_number=1, content=image_bytes)
-        
+
         fragments = Fragmenter.tile_page(page, tile_size=(50, 50))
-        
+
         # Should create more fragments with smaller tile size
         assert len(fragments) > 0
-        
+
         # Check that fragments have appropriate dimensions
         for fragment in fragments:
             x1, y1, x2, y2 = fragment.bbox
             assert x2 - x1 <= 50
             assert y2 - y1 <= 50
-    
+
     def test_tile_page_with_overlap(self):
         """Test fragmentation with overlap."""
         image_bytes = self._create_test_image(150, 150, "complex")
         page = Page(page_number=1, content=image_bytes)
-        
+
         fragments_no_overlap = Fragmenter.tile_page(page, overlap_ratio=0.0)
         fragments_with_overlap = Fragmenter.tile_page(page, overlap_ratio=0.2)
-        
+
         # With overlap, we should get more fragments
         assert len(fragments_with_overlap) >= len(fragments_no_overlap)
-    
+
     def test_tile_page_complexity_threshold(self):
         """Test fragmentation with complexity threshold."""
         # Create mostly white image
         image_bytes = self._create_test_image(200, 200, "white")
         page = Page(page_number=1, content=image_bytes)
-        
+
         fragments_no_threshold = Fragmenter.tile_page(page, complexity_threshold=0.0)
         fragments_with_threshold = Fragmenter.tile_page(page, complexity_threshold=0.05)
-        
+
         # With threshold, we should get fewer fragments (white tiles filtered out)
         assert len(fragments_with_threshold) <= len(fragments_no_threshold)
-    
+
     def test_tile_page_complex_image(self):
         """Test fragmentation with complex image content."""
         image_bytes = self._create_test_image(200, 200, "complex")
         page = Page(page_number=1, content=image_bytes)
-        
+
         fragments = Fragmenter.tile_page(page, complexity_threshold=0.01)
-        
+
         # Complex image should produce fragments even with threshold
         assert len(fragments) > 0
-        
+
         # Check that bounding boxes are within image bounds
         for fragment in fragments:
             x1, y1, x2, y2 = fragment.bbox
             assert 0 <= x1 < x2 <= 200
             assert 0 <= y1 < y2 <= 200
-    
+
     def test_tile_page_small_image(self):
         """Test fragmentation with image smaller than tile size."""
         image_bytes = self._create_test_image(50, 50, "complex")
         page = Page(page_number=1, content=image_bytes)
-        
+
         fragments = Fragmenter.tile_page(page, tile_size=(100, 100))
-        
+
         # Should still create at least one fragment
         assert len(fragments) >= 1
-        
+
         # Fragment should not exceed image dimensions
         for fragment in fragments:
             x1, y1, x2, y2 = fragment.bbox
             assert x2 <= 50
             assert y2 <= 50
-    
+
     def test_tile_page_invalid_image(self):
         """Test fragmentation with invalid image data."""
         # Create invalid image data
         invalid_bytes = b"not an image"
         page = Page(page_number=1, content=invalid_bytes)
-        
+
         fragments = Fragmenter.tile_page(page)
-        
+
         # Should return empty list for invalid image
         assert len(fragments) == 0
-    
+
     def test_calculate_complexity_white_image(self):
         """Test complexity calculation for white image."""
         white_image = np.ones((100, 100, 3), dtype=np.uint8) * 255
-        
+
         complexity = Fragmenter._calculate_complexity(white_image)
-        
+
         # White image should have very low complexity
         assert complexity < 0.1
-    
+
     def test_calculate_complexity_black_image(self):
         """Test complexity calculation for black image."""
         black_image = np.zeros((100, 100, 3), dtype=np.uint8)
-        
+
         complexity = Fragmenter._calculate_complexity(black_image)
-        
+
         # Black image should have high complexity
         assert complexity > 0.9
-    
+
     def test_calculate_complexity_mixed_image(self):
         """Test complexity calculation for mixed image."""
         # Create image with half white, half black
         image = np.ones((100, 100, 3), dtype=np.uint8) * 255
         image[:50, :] = 0  # Make top half black
-        
+
         complexity = Fragmenter._calculate_complexity(image)
-        
+
         # Mixed image should have medium complexity
         assert 0.3 < complexity < 0.7
-    
+
     def test_calculate_complexity_empty_image(self):
         """Test complexity calculation for empty image."""
         empty_image = np.array([])
-        
+
         complexity = Fragmenter._calculate_complexity(empty_image)
-        
+
         # Empty image should have zero complexity
         assert complexity == 0.0
-    
+
     def test_calculate_complexity_grayscale_image(self):
         """Test complexity calculation for grayscale image."""
         gray_image = np.ones((100, 100), dtype=np.uint8) * 128
-        
+
         complexity = Fragmenter._calculate_complexity(gray_image)
-        
+
         # Gray image should have high complexity (not white)
         assert complexity > 0.8
-    
+
     def test_config_integration(self):
         """Test that fragmenter uses configuration values."""
         # Set specific config values
@@ -196,49 +194,49 @@ class TestFragmenter:
             fragment_tile_width=75,
             fragment_tile_height=75,
             fragment_overlap_ratio=0.2,
-            fragment_complexity_threshold=0.1
+            fragment_complexity_threshold=0.1,
         )
-        
+
         image_bytes = self._create_test_image(200, 200, "complex")
         page = Page(page_number=1, content=image_bytes)
-        
+
         fragments = Fragmenter.tile_page(page)
-        
+
         # Should use config values
         assert len(fragments) > 0
-        
+
         # Check that fragments respect the configured tile size
         for fragment in fragments:
             x1, y1, x2, y2 = fragment.bbox
             assert x2 - x1 <= 75
             assert y2 - y1 <= 75
-    
+
     def test_fragment_content_is_valid_jpeg(self):
         """Test that fragment content is valid JPEG data."""
         image_bytes = self._create_test_image(150, 150, "complex")
         page = Page(page_number=1, content=image_bytes)
-        
+
         fragments = Fragmenter.tile_page(page)
-        
+
         assert len(fragments) > 0
-        
+
         # Check that each fragment contains valid JPEG data
         for fragment in fragments:
             # Try to decode the fragment content
             nparr = np.frombuffer(fragment.content, np.uint8)
             decoded = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            
+
             assert decoded is not None
             assert decoded.shape[0] > 0
             assert decoded.shape[1] > 0
-    
+
     def test_bbox_coordinates_are_correct(self):
         """Test that bounding box coordinates are correct."""
         image_bytes = self._create_test_image(150, 150, "complex")
         page = Page(page_number=1, content=image_bytes)
-        
+
         fragments = Fragmenter.tile_page(page, tile_size=(50, 50), overlap_ratio=0.0)
-        
+
         # Check that bounding boxes are non-overlapping and within image bounds
         for fragment in fragments:
             x1, y1, x2, y2 = fragment.bbox
