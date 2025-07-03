@@ -1,5 +1,6 @@
 """Document parser for extracting data from P&ID pages using LLM."""
 
+import base64
 from typing import Dict, Any
 from backend.documents.document import Page
 from backend.llm.openai_client import OpenAIClient
@@ -37,14 +38,33 @@ class DocumentParser:
             self.logger.error("extract_data.prompt not found")
             raise
         
-        # For now, use a placeholder string as the user content
-        # TODO: In the future, this would include actual image data or OCR text
-        user_content = f"This is page {page.page_number}"
+        # Convert page content (bytes) to base64 for OpenAI Vision API
+        if not page.content:
+            self.logger.warning(f"Page {page.page_number} has no content")
+            raise ValueError(f"Page {page.page_number} has no content to parse")
         
-        # Prepare messages for the LLM
+        # Encode image data as base64
+        image_base64 = base64.b64encode(page.content).decode('utf-8')
+        
+        # Prepare messages for OpenAI Vision API
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content}
+            {
+                "role": "user", 
+                "content": [
+                    {
+                        "type": "text", 
+                        "text": f"Please analyze this P&ID diagram (page {page.page_number}) and extract all the information according to the system prompt."
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{image_base64}",
+                            "detail": "high"  # High detail for technical diagrams
+                        }
+                    }
+                ]
+            }
         ]
         
         # Send to LLM and get response

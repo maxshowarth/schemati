@@ -25,7 +25,10 @@ class TestOpenAIClient:
         """Test OpenAIClient initialization with valid config."""
         set_config_for_test(
             openai_base_url="https://api.openai.com/v1",
-            openai_api_key="test-key"
+            openai_api_key="test-key",
+            openai_model="gpt-4o",
+            openai_temperature=0.2,
+            openai_max_tokens=5000
         )
         client = OpenAIClient()
         assert client.base_url == "https://api.openai.com/v1"
@@ -55,7 +58,10 @@ class TestOpenAIClient:
         # Setup
         set_config_for_test(
             openai_base_url="https://api.openai.com/v1",
-            openai_api_key="test-key"
+            openai_api_key="test-key",
+            openai_model="gpt-4o",
+            openai_temperature=0.2,
+            openai_max_tokens=5000
         )
         
         mock_response = Mock()
@@ -75,6 +81,9 @@ class TestOpenAIClient:
         mock_post.assert_called_once()
         call_args = mock_post.call_args
         assert call_args[1]["json"]["messages"] == messages
+        assert call_args[1]["json"]["model"] == "gpt-4o"
+        assert call_args[1]["json"]["temperature"] == 0.2
+        assert call_args[1]["json"]["max_tokens"] == 5000
     
     @patch('backend.llm.openai_client.requests.post')
     def test_chat_completion_request_error(self, mock_post):
@@ -143,7 +152,8 @@ class TestDocumentParser:
         mock_load_prompt.return_value = "System prompt"
         
         parser = DocumentParser(mock_client)
-        page = Page(page_number=1, content=b"test content")
+        # Create page with sample image content (fake PNG bytes)
+        page = Page(page_number=1, content=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82')
         
         # Test
         result = parser.parse_page(page)
@@ -159,7 +169,15 @@ class TestDocumentParser:
         assert call_args[0]["role"] == "system"
         assert call_args[0]["content"] == "System prompt"
         assert call_args[1]["role"] == "user"
-        assert call_args[1]["content"] == "This is page 1"
+        assert "content" in call_args[1]
+        assert isinstance(call_args[1]["content"], list)
+        assert len(call_args[1]["content"]) == 2
+        # Check text content
+        assert call_args[1]["content"][0]["type"] == "text"
+        assert "page 1" in call_args[1]["content"][0]["text"]
+        # Check image content
+        assert call_args[1]["content"][1]["type"] == "image_url"
+        assert "data:image/png;base64," in call_args[1]["content"][1]["image_url"]["url"]
     
     @patch('backend.llm.document_parser.load_prompt')
     def test_parse_page_prompt_not_found(self, mock_load_prompt):
@@ -173,6 +191,20 @@ class TestDocumentParser:
         
         # Test
         with pytest.raises(FileNotFoundError):
+            parser.parse_page(page)
+    
+    @patch('backend.llm.document_parser.load_prompt')
+    def test_parse_page_empty_content(self, mock_load_prompt):
+        """Test page parsing with empty content."""
+        # Setup
+        mock_client = Mock(spec=OpenAIClient)
+        mock_load_prompt.return_value = "System prompt"
+        
+        parser = DocumentParser(mock_client)
+        page = Page(page_number=1, content=b"")  # Empty content
+        
+        # Test
+        with pytest.raises(ValueError, match="Page 1 has no content to parse"):
             parser.parse_page(page)
     
     @patch('backend.llm.document_parser.load_prompt')

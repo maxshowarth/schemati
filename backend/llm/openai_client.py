@@ -45,10 +45,10 @@ class OpenAIClient:
         }
         
         payload = {
-            "model": "gpt-3.5-turbo",  # Default model, can be made configurable later
+            "model": self.config.openai_model,
             "messages": messages,
-            "temperature": 0.1,  # Low temperature for consistent extraction
-            "max_tokens": 4000
+            "temperature": self.config.openai_temperature,
+            "max_tokens": self.config.openai_max_tokens
         }
         
         try:
