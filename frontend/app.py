@@ -2,7 +2,7 @@
 Streamlit frontend for uploading files to Databricks volumes.
 
 This application provides a simple drag-and-drop interface for uploading files
-to Databricks volumes using the VolumeHandler class from the backend.
+to Databricks volumes using the Volume and VolumeFileStore classes from the backend.
 """
 
 import streamlit as st
@@ -14,7 +14,7 @@ from pathlib import Path
 # Add the parent directory to sys.path to import backend modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from backend.routers.volume import VolumeHandler
+from backend.routers.volume import create_volume_file_store_from_config
 from backend.logging import get_logger
 from backend.exceptions import FileAlreadyExistsError, FileNotFoundError, VolumeUploadError
 
@@ -36,18 +36,18 @@ def main():
     
     # Get current configuration status
     try:
-        volume_handler = VolumeHandler()
+        file_store = create_volume_file_store_from_config()
         config_status = "✅ Connected"
-        config_details = f"Catalog: {volume_handler.catalog}\nSchema: {volume_handler.schema}\nVolume: {volume_handler.volume_name}"
+        config_details = f"Catalog: {file_store.volume.catalog}\nSchema: {file_store.volume.schema_name}\nVolume: {file_store.volume.volume_name}"
     except Exception as e:
         config_status = "❌ Configuration Error"
         config_details = str(e)
-        volume_handler = None
+        file_store = None
     
     st.sidebar.markdown(f"**Status:** {config_status}")
     st.sidebar.text(config_details)
     
-    if volume_handler is None:
+    if file_store is None:
         st.error("⚠️ **Configuration Error**")
         st.markdown("""
         Unable to connect to Databricks. Please ensure your environment is configured with:
@@ -62,7 +62,7 @@ def main():
         return
     
     # Show volume contents on page load
-    show_volume_contents(volume_handler)
+    show_volume_contents(file_store)
     
     # Main upload interface
     st.header("File Upload")
@@ -93,9 +93,9 @@ def main():
         
         # Upload button
         if st.button("🚀 Upload Files", type="primary"):
-            upload_files(uploaded_files, volume_handler, overwrite)
+            upload_files(uploaded_files, file_store, overwrite)
 
-def upload_files(uploaded_files, volume_handler, overwrite):
+def upload_files(uploaded_files, file_store, overwrite):
     """Upload files to Databricks volume."""
     progress_bar = st.progress(0)
     status_text = st.empty()
@@ -115,8 +115,8 @@ def upload_files(uploaded_files, volume_handler, overwrite):
                 tmp_file.write(uploaded_file.getvalue())
                 tmp_file_path = tmp_file.name
                 
-                # Upload using VolumeHandler with original filename
-                success = volume_handler.upload_file(tmp_file_path, overwrite=overwrite, destination_filename=uploaded_file.name)
+                # Upload using VolumeFileStore with original filename
+                success = file_store.upload_file(tmp_file_path, overwrite=overwrite, destination_filename=uploaded_file.name)
                 
                 if success:
                     successful_uploads += 1
@@ -171,14 +171,14 @@ def upload_files(uploaded_files, volume_handler, overwrite):
     
     # Show volume contents
     if successful_uploads > 0:
-        show_volume_contents(volume_handler)
+        show_volume_contents(file_store)
 
-def show_volume_contents(volume_handler):
+def show_volume_contents(file_store):
     """Display current files in the volume."""
     st.subheader("📂 Volume Contents")
     
     try:
-        files = volume_handler.list_files()
+        files = file_store.list_files()
         if files:
             st.write(f"Found {len(files)} file(s) in the volume:")
             for file_path in files:

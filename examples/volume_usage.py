@@ -1,17 +1,23 @@
 """
-Example demonstrating the new Volume and VolumeFileStore classes.
+Example demonstrating the Volume and VolumeFileStore classes.
 
-This shows how to use the refactored classes directly for better
+This shows how to use the refactored classes for better
 object-oriented design and explicit dependency injection.
 """
+
+import sys
+from pathlib import Path
+
+# Add the parent directory to sys.path to import backend modules
+sys.path.append(str(Path(__file__).parent.parent))
 
 from backend.routers.volume import Volume, VolumeFileStore, create_volume_from_config, create_volume_file_store_from_config
 from backend.auth import get_databricks_auth
 from unittest.mock import MagicMock
 
 
-def example_using_new_classes():
-    """Example using the new Volume and VolumeFileStore classes directly."""
+def example_using_classes():
+    """Example using the Volume and VolumeFileStore classes directly."""
     
     # Create a Volume instance - pure data model
     volume = Volume(
@@ -62,8 +68,8 @@ def example_using_helper_functions():
     print(f"Config-based volume: {file_store.volume.get_full_name()}")
 
 
-def example_new_download_method():
-    """Example showing the new download_file_as_bytes method."""
+def example_download_file_as_bytes():
+    """Example showing the download_file_as_bytes method."""
     
     volume = Volume(catalog="catalog", schema_name="schema", volume_name="volume")
     mock_client = MagicMock()
@@ -80,35 +86,15 @@ def example_new_download_method():
     print(f"Downloaded {len(file_bytes)} bytes")
 
 
-def example_backward_compatibility():
-    """Example showing that old VolumeHandler still works."""
-    
-    from backend.routers.volume import VolumeHandler
-    
-    # Old way still works
-    mock_client = MagicMock()
-    handler = VolumeHandler(
-        catalog="catalog",
-        schema="schema", 
-        volume_name="volume",
-        client=mock_client
-    )
-    
-    print(f"Backward compatible handler: {handler.catalog}.{handler.schema}.{handler.volume_name}")
-    print(f"Volume exists: {handler.volume_exists()}")
-
 
 if __name__ == "__main__":
-    print("=== Example: Using new Volume and VolumeFileStore classes ===")
-    example_using_new_classes()
+    print("=== Example: Using Volume and VolumeFileStore classes ===")
+    example_using_classes()
     
     print("\n=== Example: Using helper functions ===")
     example_using_helper_functions()
     
-    print("\n=== Example: New download_file_as_bytes method ===")
-    example_new_download_method()
-    
-    print("\n=== Example: Backward compatibility ===")
-    example_backward_compatibility()
+    print("\n=== Example: download_file_as_bytes method ===")
+    example_download_file_as_bytes()
     
     print("\nAll examples completed successfully!")

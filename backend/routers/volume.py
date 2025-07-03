@@ -189,70 +189,7 @@ def create_volume_file_store_from_config(catalog: Optional[str] = None, schema: 
     return VolumeFileStore(volume, databricks_client)
 
 
-class VolumeHandler:
-    """Handles operations related to Databricks volumes.
-    
-    DEPRECATED: This class is maintained for backward compatibility.
-    New code should use Volume and VolumeFileStore classes directly.
-    """
 
-    def __init__(
-        self,
-        catalog: Optional[str] = None,
-        schema: Optional[str] = None,
-        volume_name: Optional[str] = None,
-        client: Optional[object] = None,
-    ):
-        # Use the new helper function for backward compatibility
-        self._file_store = create_volume_file_store_from_config(catalog, schema, volume_name, client)
-        
-        # Expose the old interface for backward compatibility
-        self.catalog = self._file_store.volume.catalog
-        self.schema = self._file_store.volume.schema_name
-        self.volume_name = self._file_store.volume.volume_name
-        self._client = self._file_store.client
-    
-    @property
-    def client(self):
-        """Get the current client."""
-        return self._client
-    
-    @client.setter
-    def client(self, value):
-        """Set the client and update the internal file store."""
-        self._client = value
-        self._file_store.client = value
-
-    def volume_exists(self) -> bool:
-        """Checks if the volume exists in the databricks workspace."""
-        return self._file_store.volume_exists()
-
-    def list_files(self) -> list[str]:
-        """Lists the files in the volume."""
-        return self._file_store.list_files()
-
-    def file_exists(self, file_name: str) -> bool:
-        """Checks if a file exists in the volume using Files API get_metadata."""
-        return self._file_store.file_exists(file_name)
-
-    def upload_file(self, file_path: str, overwrite: bool = False, destination_filename: Optional[str] = None):
-        """Uploads a file to the volume using Files API upload.
-        
-        Args:
-            file_path: Path to the local file to upload
-            overwrite: Whether to overwrite existing files
-            destination_filename: Optional filename to use in the volume. If not provided, uses the basename of file_path.
-            
-        Raises:
-            FileNotFoundError: If the local file doesn't exist
-            FileAlreadyExistsError: If the file already exists in the volume and overwrite is False
-            VolumeUploadError: If there's an error during the upload process
-        """
-        return self._file_store.upload_file(file_path, overwrite, destination_filename)
-
-    def download_file(self, file_name: str, download_path: str):
-        """Downloads a file from the volume onto the local filesystem using Files API download."""
-        return self._file_store.download_file(file_name, download_path)
 
 
 def local_file_exists(file_path: str) -> bool:
