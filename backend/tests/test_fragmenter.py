@@ -246,3 +246,139 @@ class TestFragmenter:
             assert y2 <= 150
             assert x1 < x2
             assert y1 < y2
+
+
+class TestPageIntegration:
+    """Test integration between Page class and Fragmenter."""
+
+    def setup_method(self):
+        """Set up test configuration."""
+        set_config_for_test(
+            fragment_tile_width=100,
+            fragment_tile_height=100,
+            fragment_overlap_ratio=0.1,
+            fragment_complexity_threshold=0.03,
+            fragment_dynamic_enabled=False,
+        )
+
+    def _create_test_image(self, width: int, height: int, content_type: str = "white") -> bytes:
+        """Create a test image with specified dimensions and content type."""
+        if content_type == "white":
+            # Create white image
+            image = np.ones((height, width, 3), dtype=np.uint8) * 255
+        elif content_type == "complex":
+            # Create image with some content
+            image = np.ones((height, width, 3), dtype=np.uint8) * 255
+            # Add some black rectangles
+            cv2.rectangle(image, (10, 10), (width-10, height-10), (0, 0, 0), 2)
+            cv2.rectangle(image, (20, 20), (width-20, height-20), (128, 128, 128), -1)
+        else:
+            raise ValueError(f"Unknown content type: {content_type}")
+
+        success, encoded = cv2.imencode(".jpg", image)
+        if not success:
+            raise RuntimeError("Failed to encode test image")
+
+        return encoded.tobytes()
+
+    def test_page_fragment_method(self):
+        """Test that Page.fragment() method works correctly."""
+        # Create a page with complex content
+        image_bytes = self._create_test_image(300, 300, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        # Initially, fragments should be empty
+        assert len(page.fragments) == 0
+
+        # Fragment the page
+        fragments = page.fragment()
+
+        # Fragments should be populated
+        assert len(page.fragments) > 0
+        assert page.fragments == fragments
+        assert all(isinstance(f, PageFragment) for f in page.fragments)
+
+    def test_page_fragment_method_with_custom_params(self):
+        """Test Page.fragment() with custom parameters."""
+        image_bytes = self._create_test_image(300, 300, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        # Fragment with custom parameters
+        fragments = page.fragment(
+            tile_size=(50, 50),
+            overlap_ratio=0.2,
+            complexity_threshold=0.01
+        )
+
+        # Should create fragments
+        assert len(fragments) > 0
+        assert len(page.fragments) == len(fragments)
+
+    def test_page_visualize_fragments(self):
+        """Test that Page.visualize_fragments() creates a valid visualization."""
+        image_bytes = self._create_test_image(200, 200, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        # Fragment the page first
+        page.fragment(tile_size=(80, 80))
+        assert len(page.fragments) > 0
+
+        # Create visualization
+        viz_bytes = page.visualize_fragments()
+
+        # Should return valid image bytes
+        assert isinstance(viz_bytes, bytes)
+        assert len(viz_bytes) > 0
+
+        # Should be decodable as image
+        nparr = np.frombuffer(viz_bytes, np.uint8)
+        viz_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        assert viz_image is not None
+        assert viz_image.shape[0] == 200  # height
+        assert viz_image.shape[1] == 200  # width
+
+    def test_page_visualize_fragments_no_fragments(self):
+        """Test visualization when page has no fragments."""
+        image_bytes = self._create_test_image(200, 200, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        # Don't fragment the page
+        assert len(page.fragments) == 0
+
+        # Should still create visualization (just the original image)
+        viz_bytes = page.visualize_fragments()
+        assert isinstance(viz_bytes, bytes)
+        assert len(viz_bytes) > 0
+
+    def test_page_visualize_fragments_invalid_image(self):
+        """Test that visualize_fragments raises error for invalid image."""
+        page = Page(page_number=1, content=b"invalid image data")
+
+        # Should raise ValueError
+        try:
+            page.visualize_fragments()
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Failed to decode image" in str(e)
+
+    def test_integration_workflow(self):
+        """Test complete integration workflow."""
+        # Create a page
+        image_bytes = self._create_test_image(250, 200, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        # 1. Fragment the page
+        fragments = page.fragment(tile_size=(100, 100), overlap_ratio=0.1)
+
+        # 2. Verify fragments were created and stored
+        assert len(fragments) > 0
+        assert len(page.fragments) == len(fragments)
+
+        # 3. Create visualization
+        viz_bytes = page.visualize_fragments()
+        assert len(viz_bytes) > 0
+
+        # 4. Verify visualization is larger than original (due to bounding boxes)
+        # This is a rough check - the visualization should typically be larger
+        # due to the overlaid graphics, but not always guaranteed
+        assert len(viz_bytes) > 1000  # Should be a reasonable size
