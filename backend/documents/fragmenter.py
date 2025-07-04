@@ -74,8 +74,8 @@ class Fragmenter:
                 x2 = min(x + tile_width, width)
                 y2 = min(y + tile_height, height)
 
-                # Skip if tile is too small
-                if (x2 - x1) < tile_width // 2 or (y2 - y1) < tile_height // 2:
+                # Skip if tile is too small, unless we want 100% coverage (complexity_threshold == 0)
+                if complexity_threshold > 0 and ((x2 - x1) < tile_width // 2 or (y2 - y1) < tile_height // 2):
                     continue
 
                 # Extract tile

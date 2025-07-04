@@ -35,16 +35,28 @@ def draw_tile_boundaries(image: np.ndarray, fragments: list) -> np.ndarray:
         fragments: List of PageFragment objects with bbox attributes
         
     Returns:
-        Image with red rectangle boundaries drawn
+        Image with distinct colored rectangle boundaries drawn
     """
     # Make a copy to avoid modifying the original
     image_with_boundaries = image.copy()
     
-    # Draw rectangles for each fragment
-    for fragment in fragments:
+    # Generate distinct random colors for each fragment
+    np.random.seed(42)  # Use fixed seed for consistent colors
+    colors = []
+    for _ in range(len(fragments)):
+        # Generate bright, distinct colors in BGR format
+        color = (
+            int(np.random.randint(0, 256)),  # Blue
+            int(np.random.randint(0, 256)),  # Green  
+            int(np.random.randint(0, 256))   # Red
+        )
+        colors.append(color)
+    
+    # Draw rectangles for each fragment with distinct colors
+    for i, fragment in enumerate(fragments):
         x1, y1, x2, y2 = fragment.bbox
-        # Draw rectangle border (red color in BGR format, thickness 2)
-        cv2.rectangle(image_with_boundaries, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        # Draw rectangle border with unique color for each fragment (thickness 2)
+        cv2.rectangle(image_with_boundaries, (x1, y1), (x2, y2), colors[i], 2)
     
     return image_with_boundaries
 
