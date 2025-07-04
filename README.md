@@ -23,6 +23,7 @@ Extract critical information from P&ID diagrams and other similar schematics usi
 ### Frontend
 A Streamlit web application for uploading files to Databricks volumes:
 - Drag-and-drop file upload interface
+- **Image processing preview** - See original and processed versions side-by-side before upload
 - Overwrite option control
 - Real-time upload progress and feedback
 

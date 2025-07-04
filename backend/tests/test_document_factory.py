@@ -251,3 +251,6 @@ def test_config_defaults():
     assert config.image_dpi > 0
     assert config.image_max_width > 0
     assert config.image_max_height > 0
+
+
+
