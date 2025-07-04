@@ -27,6 +27,27 @@ from backend.config import get_config
 
 logger = get_logger(__name__)
 
+def draw_tile_boundaries(image: np.ndarray, fragments: list) -> np.ndarray:
+    """Draw tile boundaries on an image.
+    
+    Args:
+        image: The input image (BGR format)
+        fragments: List of PageFragment objects with bbox attributes
+        
+    Returns:
+        Image with red rectangle boundaries drawn
+    """
+    # Make a copy to avoid modifying the original
+    image_with_boundaries = image.copy()
+    
+    # Draw rectangles for each fragment
+    for fragment in fragments:
+        x1, y1, x2, y2 = fragment.bbox
+        # Draw rectangle border (red color in BGR format, thickness 2)
+        cv2.rectangle(image_with_boundaries, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    
+    return image_with_boundaries
+
 st.set_page_config(
     page_title="Schemati File Uploader",
     page_icon="📁",
@@ -65,6 +86,9 @@ def get_preview_data_for_image(file_bytes: bytes, filename: str) -> list[dict]:
             if processed_image is None:
                 raise ValueError("Failed to decode processed image from Document")
             
+            # Fragment the page to get tile boundaries
+            fragments = document.pages[0].fragment(complexity_threshold=0.0)
+            
             # Check if resizing occurred by comparing dimensions
             was_resized = (original_image.shape[:2] != processed_image.shape[:2])
             
@@ -72,7 +96,8 @@ def get_preview_data_for_image(file_bytes: bytes, filename: str) -> list[dict]:
                 'page_number': 1,
                 'original_image': original_image,
                 'processed_image': processed_image,
-                'was_resized': was_resized
+                'was_resized': was_resized,
+                'fragments': fragments
             }]
             
         finally:
@@ -120,6 +145,9 @@ def get_preview_data_for_pdf(file_bytes: bytes, filename: str) -> list[dict]:
                 if processed_image is None:
                     raise ValueError(f"Failed to decode processed page {i+1} from Document")
                 
+                # Fragment the page to get tile boundaries
+                fragments = document_page.fragment(complexity_threshold=0.0)
+                
                 # Check if resizing occurred by comparing dimensions
                 was_resized = (original_image.shape[:2] != processed_image.shape[:2])
                 
@@ -127,7 +155,8 @@ def get_preview_data_for_pdf(file_bytes: bytes, filename: str) -> list[dict]:
                     'page_number': i + 1,
                     'original_image': original_image,
                     'processed_image': processed_image,
-                    'was_resized': was_resized
+                    'was_resized': was_resized,
+                    'fragments': fragments
                 })
             
             return preview_data
@@ -255,9 +284,18 @@ def show_image_comparison(page_data, filename, total_pages):
     original = page_data['original_image']
     processed = page_data['processed_image']
     was_resized = page_data['was_resized']
+    fragments = page_data.get('fragments', [])
     
     if total_pages > 1:  # Multi-page document
         st.markdown(f"**Page {page_num}:**")
+    
+    # Add checkbox to toggle tile boundaries
+    show_boundaries = st.checkbox(
+        f"🔲 Show tile boundaries {'for page ' + str(page_num) if total_pages > 1 else ''}",
+        value=False,
+        key=f"boundaries_{filename}_{page_num}",
+        help="Display red rectangles showing how the image will be divided into tiles for processing"
+    )
     
     if was_resized:
         st.info(f"🔄 This {'page' if total_pages > 1 else 'image'} will be resized during processing.")
@@ -274,17 +312,32 @@ def show_image_comparison(page_data, filename, total_pages):
         
         with col2:
             st.markdown("**After Processing:**")
+            # Get processed image to display
+            display_image = processed
+            if show_boundaries and fragments:
+                display_image = draw_tile_boundaries(processed, fragments)
+            
             # Convert from BGR to RGB for display
-            processed_rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
+            processed_rgb = cv2.cvtColor(display_image, cv2.COLOR_BGR2RGB)
             st.image(processed_rgb, use_container_width=True)
-            st.caption(f"Size: {processed.shape[1]}×{processed.shape[0]}")
+            caption = f"Size: {processed.shape[1]}×{processed.shape[0]}"
+            if show_boundaries and fragments:
+                caption += f" | {len(fragments)} tiles"
+            st.caption(caption)
     else:
         st.success(f"✅ This {'page' if total_pages > 1 else 'image'} is within size limits and will not be resized.")
         
-        # Show just the original image
-        original_rgb = cv2.cvtColor(original, cv2.COLOR_BGR2RGB)
-        st.image(original_rgb, use_container_width=True)
-        st.caption(f"Size: {original.shape[1]}×{original.shape[0]}")
+        # Show the original image (which is same as processed)
+        display_image = original
+        if show_boundaries and fragments:
+            display_image = draw_tile_boundaries(original, fragments)
+            
+        display_rgb = cv2.cvtColor(display_image, cv2.COLOR_BGR2RGB)
+        st.image(display_rgb, use_container_width=True)
+        caption = f"Size: {original.shape[1]}×{original.shape[0]}"
+        if show_boundaries and fragments:
+            caption += f" | {len(fragments)} tiles"
+        st.caption(caption)
 
 def upload_files(uploaded_files, file_store, overwrite):
     """Upload files to Databricks volume."""
