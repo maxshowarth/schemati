@@ -38,6 +38,8 @@ class Page:
         tile_size: tuple[int, int] | None = None,
         overlap_ratio: float | None = None,
         complexity_threshold: float | None = None,
+        num_tiles_horizontal: int | None = None,
+        num_tiles_vertical: int | None = None,
     ) -> list[PageFragment]:
         """Fragment this page into smaller rectangular tiles.
         
@@ -48,6 +50,8 @@ class Page:
             tile_size: Optional (width, height) tuple for tile dimensions
             overlap_ratio: Optional overlap ratio for tiles (0.0 to 1.0)
             complexity_threshold: Optional threshold for skipping blank tiles
+            num_tiles_horizontal: Optional number of tiles horizontally (overrides tile_size)
+            num_tiles_vertical: Optional number of tiles vertically (overrides tile_size)
             
         Returns:
             List of PageFragment objects (same as self.fragments)
@@ -59,7 +63,9 @@ class Page:
             self, 
             tile_size=tile_size,
             overlap_ratio=overlap_ratio,
-            complexity_threshold=complexity_threshold
+            complexity_threshold=complexity_threshold,
+            num_tiles_horizontal=num_tiles_horizontal,
+            num_tiles_vertical=num_tiles_vertical
         )
         return self.fragments
 

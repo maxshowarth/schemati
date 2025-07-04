@@ -37,6 +37,8 @@ class AppConfig(BaseSettings):
     fragment_overlap_ratio: float = 0.1
     fragment_complexity_threshold: float = 0.03
     fragment_dynamic_enabled: bool = False
+    fragment_num_tiles_horizontal: int = 5
+    fragment_num_tiles_vertical: int = 4
 
     # OpenAI/LLM
     openai_base_url: Optional[str] = None
