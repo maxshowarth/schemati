@@ -454,3 +454,26 @@ class TestPageIntegration:
             x1, y1, x2, y2 = fragment.bbox
             assert x1 >= 0 and y1 >= 0
             assert x2 > x1 and y2 > y1
+
+    def test_page_fragment_with_grid_params(self):
+        """Test Page.fragment() with grid parameters."""
+        image_bytes = self._create_test_image(300, 200, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        # Fragment with grid parameters
+        fragments = page.fragment(
+            num_tiles_horizontal=3,
+            num_tiles_vertical=2,
+            overlap_ratio=0.0,
+            complexity_threshold=0.0
+        )
+
+        # Should create exactly 3x2 = 6 fragments
+        assert len(fragments) == 6
+        assert len(page.fragments) == 6
+
+        # Verify all fragments have reasonable sizes
+        for fragment in page.fragments:
+            x1, y1, x2, y2 = fragment.bbox
+            assert x2 - x1 >= 90  # Should be around 100 pixels wide
+            assert y2 - y1 >= 90  # Should be around 100 pixels tall
