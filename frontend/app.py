@@ -40,23 +40,31 @@ def draw_tile_boundaries(image: np.ndarray, fragments: list) -> np.ndarray:
     # Make a copy to avoid modifying the original
     image_with_boundaries = image.copy()
     
-    # Generate distinct random colors for each fragment
-    np.random.seed(42)  # Use fixed seed for consistent colors
-    colors = []
-    for _ in range(len(fragments)):
-        # Generate bright, distinct colors in BGR format
-        color = (
-            int(np.random.randint(0, 256)),  # Blue
-            int(np.random.randint(0, 256)),  # Green  
-            int(np.random.randint(0, 256))   # Red
-        )
-        colors.append(color)
+    # Predefined visually distinct colors (hex format)
+    distinct_hex_colors = [
+        '#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#42d4f4', 
+        '#f032e6', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', 
+        '#800000', '#aaffc3', '#000075', '#a9a9a9'
+    ]
+    
+    def hex_to_bgr(hex_color):
+        """Convert hex color to BGR format for OpenCV."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+        return (b, g, r)  # BGR format for OpenCV
+    
+    # Convert hex colors to BGR format
+    bgr_colors = [hex_to_bgr(color) for color in distinct_hex_colors]
     
     # Draw rectangles for each fragment with distinct colors
     for i, fragment in enumerate(fragments):
         x1, y1, x2, y2 = fragment.bbox
+        # Cycle through colors if there are more fragments than colors
+        color = bgr_colors[i % len(bgr_colors)]
         # Draw rectangle border with unique color for each fragment (thickness 2)
-        cv2.rectangle(image_with_boundaries, (x1, y1), (x2, y2), colors[i], 2)
+        cv2.rectangle(image_with_boundaries, (x1, y1), (x2, y2), color, 2)
     
     return image_with_boundaries
 
