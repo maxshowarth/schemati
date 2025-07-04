@@ -19,6 +19,8 @@ class TestFragmenter:
             fragment_overlap_ratio=0.1,
             fragment_complexity_threshold=0.03,
             fragment_dynamic_enabled=False,
+            fragment_num_tiles_horizontal=5,
+            fragment_num_tiles_vertical=4,
         )
 
     def _create_test_image(self, width: int, height: int, content_type: str = "white") -> bytes:
@@ -246,6 +248,125 @@ class TestFragmenter:
             assert y2 <= 150
             assert x1 < x2
             assert y1 < y2
+
+    def test_grid_based_tiling(self):
+        """Test grid-based tiling with specified tile counts."""
+        image_bytes = self._create_test_image(500, 400, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        # Test with 5x4 grid (should create 20 tiles max)
+        fragments = Fragmenter.tile_page(
+            page, 
+            num_tiles_horizontal=5, 
+            num_tiles_vertical=4,
+            overlap_ratio=0.0,
+            complexity_threshold=0.0  # Ensure all tiles are created
+        )
+
+        # Should create exactly 5x4 = 20 tiles
+        assert len(fragments) == 20
+
+        # Check that all tiles are within bounds and cover the image
+        for fragment in fragments:
+            x1, y1, x2, y2 = fragment.bbox
+            assert x1 >= 0
+            assert y1 >= 0
+            assert x2 <= 500
+            assert y2 <= 400
+            assert x1 < x2
+            assert y1 < y2
+
+    def test_grid_based_tiling_with_overlap(self):
+        """Test grid-based tiling with overlap."""
+        image_bytes = self._create_test_image(300, 300, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        fragments = Fragmenter.tile_page(
+            page, 
+            num_tiles_horizontal=3, 
+            num_tiles_vertical=3,
+            overlap_ratio=0.2,
+            complexity_threshold=0.0
+        )
+
+        # Should create 3x3 = 9 tiles
+        assert len(fragments) == 9
+
+        # Verify tiles have reasonable overlap
+        for fragment in fragments:
+            x1, y1, x2, y2 = fragment.bbox
+            # Each tile should be larger than base size due to overlap
+            tile_width = x2 - x1
+            tile_height = y2 - y1
+            base_width = 300 / 3  # 100
+            base_height = 300 / 3  # 100
+            # With 20% overlap, tiles should be larger than base size
+            assert tile_width >= base_width
+
+    def test_grid_vs_fixed_size_difference(self):
+        """Test that grid-based and fixed-size tiling produce different results."""
+        image_bytes = self._create_test_image(350, 280, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        # Grid-based approach
+        grid_fragments = Fragmenter.tile_page(
+            page, 
+            num_tiles_horizontal=3, 
+            num_tiles_vertical=2,
+            overlap_ratio=0.0,
+            complexity_threshold=0.0
+        )
+
+        # Fixed-size approach
+        fixed_fragments = Fragmenter.tile_page(
+            page, 
+            tile_size=(100, 100),
+            overlap_ratio=0.0,
+            complexity_threshold=0.0
+        )
+
+        # Should have different number of fragments
+        assert len(grid_fragments) != len(fixed_fragments)
+        # Grid should create exactly 3x2 = 6 tiles
+        assert len(grid_fragments) == 6
+
+    def test_grid_tiling_covers_entire_image(self):
+        """Test that grid tiling provides 100% coverage."""
+        image_bytes = self._create_test_image(350, 280, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        fragments = Fragmenter.tile_page(
+            page, 
+            num_tiles_horizontal=3, 
+            num_tiles_vertical=2,
+            overlap_ratio=0.0,
+            complexity_threshold=0.0
+        )
+
+        # Check that tiles reach the edges
+        min_x = min(f.bbox[0] for f in fragments)
+        min_y = min(f.bbox[1] for f in fragments)
+        max_x = max(f.bbox[2] for f in fragments)
+        max_y = max(f.bbox[3] for f in fragments)
+
+        assert min_x == 0
+        assert min_y == 0
+        assert max_x == 350
+        assert max_y == 280
+
+    def test_default_grid_configuration(self):
+        """Test that default grid configuration is used when no parameters are specified."""
+        image_bytes = self._create_test_image(500, 400, "complex")
+        page = Page(page_number=1, content=image_bytes)
+
+        # Call without any tile parameters - should use grid defaults (5x4)
+        fragments = Fragmenter.tile_page(
+            page, 
+            complexity_threshold=0.0
+        )
+
+        # Should create 5x4 = 20 tiles using default grid
+        assert len(fragments) == 20
 
 
 class TestPageIntegration:
