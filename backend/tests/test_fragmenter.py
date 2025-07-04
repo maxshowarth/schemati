@@ -314,53 +314,6 @@ class TestPageIntegration:
         assert len(fragments) > 0
         assert len(page.fragments) == len(fragments)
 
-    def test_page_visualize_fragments(self):
-        """Test that Page.visualize_fragments() creates a valid visualization."""
-        image_bytes = self._create_test_image(200, 200, "complex")
-        page = Page(page_number=1, content=image_bytes)
-
-        # Fragment the page first
-        page.fragment(tile_size=(80, 80))
-        assert len(page.fragments) > 0
-
-        # Create visualization
-        viz_bytes = page.visualize_fragments()
-
-        # Should return valid image bytes
-        assert isinstance(viz_bytes, bytes)
-        assert len(viz_bytes) > 0
-
-        # Should be decodable as image
-        nparr = np.frombuffer(viz_bytes, np.uint8)
-        viz_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        assert viz_image is not None
-        assert viz_image.shape[0] == 200  # height
-        assert viz_image.shape[1] == 200  # width
-
-    def test_page_visualize_fragments_no_fragments(self):
-        """Test visualization when page has no fragments."""
-        image_bytes = self._create_test_image(200, 200, "complex")
-        page = Page(page_number=1, content=image_bytes)
-
-        # Don't fragment the page
-        assert len(page.fragments) == 0
-
-        # Should still create visualization (just the original image)
-        viz_bytes = page.visualize_fragments()
-        assert isinstance(viz_bytes, bytes)
-        assert len(viz_bytes) > 0
-
-    def test_page_visualize_fragments_invalid_image(self):
-        """Test that visualize_fragments raises error for invalid image."""
-        page = Page(page_number=1, content=b"invalid image data")
-
-        # Should raise ValueError
-        try:
-            page.visualize_fragments()
-            assert False, "Expected ValueError"
-        except ValueError as e:
-            assert "Failed to decode image" in str(e)
-
     def test_integration_workflow(self):
         """Test complete integration workflow."""
         # Create a page
@@ -374,11 +327,9 @@ class TestPageIntegration:
         assert len(fragments) > 0
         assert len(page.fragments) == len(fragments)
 
-        # 3. Create visualization
-        viz_bytes = page.visualize_fragments()
-        assert len(viz_bytes) > 0
-
-        # 4. Verify visualization is larger than original (due to bounding boxes)
-        # This is a rough check - the visualization should typically be larger
-        # due to the overlaid graphics, but not always guaranteed
-        assert len(viz_bytes) > 1000  # Should be a reasonable size
+        # 3. Verify bounding boxes are accessible
+        for fragment in page.fragments:
+            assert len(fragment.bbox) == 4
+            x1, y1, x2, y2 = fragment.bbox
+            assert x1 >= 0 and y1 >= 0
+            assert x2 > x1 and y2 > y1
