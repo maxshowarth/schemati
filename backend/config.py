@@ -25,11 +25,18 @@ class AppConfig(BaseSettings):
     log_level: str = "DEBUG"
     allowed_image_extensions: list[str] = [".jpg", ".jpeg", ".png"]
     allowed_pdf_extensions: list[str] = [".pdf"]
-    
+
     # Image processing
     image_dpi: int = 300
     image_max_width: int = 2048
     image_max_height: int = 2048
+
+    # Fragment configuration
+    fragment_tile_width: int = 1024
+    fragment_tile_height: int = 1024
+    fragment_overlap_ratio: float = 0.1
+    fragment_complexity_threshold: float = 0.03
+    fragment_dynamic_enabled: bool = False
 
     # OpenAI/LLM
     openai_base_url: Optional[str] = None
