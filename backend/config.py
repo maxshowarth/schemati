@@ -25,7 +25,7 @@ class AppConfig(BaseSettings):
     log_level: str = "DEBUG"
     allowed_image_extensions: list[str] = [".jpg", ".jpeg", ".png"]
     allowed_pdf_extensions: list[str] = [".pdf"]
-    
+
     # Image processing
     image_dpi: int = 300
     image_max_width: int = 2048
@@ -38,6 +38,12 @@ class AppConfig(BaseSettings):
     fragment_complexity_threshold: float = 0.03
     fragment_dynamic_enabled: bool = False
 
+    # OpenAI/LLM
+    openai_base_url: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    openai_model: str = "gpt-4o"  # Default to GPT-4o for vision capabilities
+    openai_temperature: float = 0.1  # Low temperature for consistent extraction
+    openai_max_tokens: int = 4000  # Maximum tokens for response
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

@@ -11,6 +11,7 @@ from backend.config import get_config
 class DocumentFactory:
     """Factory class for creating Document objects from either a local path or Databricks volume."""
 
+
     def _resize_image_if_needed(self, image: np.ndarray) -> np.ndarray:
         """Resize image if it exceeds maximum dimensions while preserving aspect ratio."""
         app_config = get_config()  # Get config dynamically

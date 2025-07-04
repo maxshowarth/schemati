@@ -7,8 +7,8 @@ def clear_env(monkeypatch):
     for var in [
         "DATABRICKS_HOST", "DATABRICKS_TOKEN", "DATABRICKS_CLIENT_ID", "DATABRICKS_CLIENT_SECRET",
         "DATABRICKS_WORKSPACE_ID", "DATABRICKS_ACCOUNT_ID", "DATABRICKS_CONFIG_PROFILE", "APP_ENV", "LOG_LEVEL",
-        "IMAGE_DPI", "IMAGE_MAX_WIDTH", "IMAGE_MAX_HEIGHT",
-        "FRAGMENT_TILE_WIDTH", "FRAGMENT_TILE_HEIGHT", "FRAGMENT_OVERLAP_RATIO", 
+        "IMAGE_DPI", "IMAGE_MAX_WIDTH", "IMAGE_MAX_HEIGHT", "OPENAI_BASE_URL", "OPENAI_API_KEY",
+        "FRAGMENT_TILE_WIDTH", "FRAGMENT_TILE_HEIGHT", "FRAGMENT_OVERLAP_RATIO",
         "FRAGMENT_COMPLEXITY_THRESHOLD", "FRAGMENT_DYNAMIC_ENABLED"
     ]:
         monkeypatch.delenv(var, raising=False)
@@ -52,7 +52,7 @@ class TestAppConfig:
         monkeypatch.setenv("IMAGE_DPI", "150")
         monkeypatch.setenv("IMAGE_MAX_WIDTH", "1024")
         monkeypatch.setenv("IMAGE_MAX_HEIGHT", "768")
-        
+
         config = AppConfig()
         assert config.image_dpi == 150
         assert config.image_max_width == 1024
@@ -65,6 +65,21 @@ class TestAppConfig:
         assert config.image_dpi == 150
         assert config.image_max_width == 1024
         assert config.image_max_height == 768
+
+    def test_openai_config_defaults(self):
+        """Test that OpenAI configuration defaults are set properly."""
+        config = AppConfig()
+        assert config.openai_base_url is None
+        assert config.openai_api_key is None
+
+    def test_openai_config_env_loading(self, monkeypatch):
+        """Test that OpenAI configuration loads from environment variables."""
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
+
+        config = AppConfig()
+        assert config.openai_base_url == "https://api.openai.com/v1"
+        assert config.openai_api_key == "sk-test-key"
 
     def test_fragment_config_defaults(self):
         """Test that fragment configuration defaults are set properly."""
@@ -82,7 +97,7 @@ class TestAppConfig:
         monkeypatch.setenv("FRAGMENT_OVERLAP_RATIO", "0.2")
         monkeypatch.setenv("FRAGMENT_COMPLEXITY_THRESHOLD", "0.05")
         monkeypatch.setenv("FRAGMENT_DYNAMIC_ENABLED", "true")
-        
+
         config = AppConfig()
         assert config.fragment_tile_width == 512
         assert config.fragment_tile_height == 768
